@@ -69,6 +69,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -101,6 +102,10 @@ type MemoContextMenuState = { memo: MemoSummary; x: number; y: number };
 type NotebookDropPosition = "before" | "inside" | "after";
 
 const IMAGE_COMPRESSION_STORAGE_KEY = "edgeever.imageCompressionEnabled";
+const MEMO_LIST_WIDTH_STORAGE_KEY = "edgeever.memoListWidth";
+const DEFAULT_MEMO_LIST_WIDTH_PX = 360;
+const MIN_MEMO_LIST_WIDTH_PX = 300;
+const MAX_MEMO_LIST_WIDTH_PX = 540;
 const MEMO_LONG_PRESS_DELAY_MS = 520;
 const MEMO_LONG_PRESS_MOVE_TOLERANCE_PX = 14;
 
@@ -233,6 +238,7 @@ const WorkspaceApp = ({
   const [mobileNotebookPickerOpen, setMobileNotebookPickerOpen] = useState(false);
   const [mobileBottomNavActive, setMobileBottomNavActive] = useState<MobileBottomNavItem>("home");
   const [mobileSearchFocusToken, setMobileSearchFocusToken] = useState(0);
+  const [memoListWidth, setMemoListWidth] = useState(readMemoListWidthPreference);
   const [search, setSearch] = useState("");
   const [syncSummary, setSyncSummary] = useState<SyncQueueSummary>(emptySyncQueueSummary);
   const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
@@ -700,10 +706,41 @@ const WorkspaceApp = ({
     setMobileBottomNavActive("home");
   };
 
+  const handleMemoListResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!window.matchMedia("(min-width: 1024px)").matches) {
+      return;
+    }
+
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = memoListWidth;
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const nextWidth = clampMemoListWidth(startWidth + moveEvent.clientX - startX);
+      setMemoListWidth(nextWidth);
+      writeMemoListWidthPreference(nextWidth);
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  };
+
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-emerald-50 text-slate-950">
       <div className="min-w-0 flex-1">
-        <main className="grid h-[100dvh] min-h-0 lg:grid-cols-[260px_360px_minmax(0,1fr)]">
+        <main
+          className="grid h-[100dvh] min-h-0 lg:grid-cols-[260px_var(--memo-list-width)_minmax(0,1fr)]"
+          style={{ "--memo-list-width": `${memoListWidth}px` } as CSSProperties}
+        >
           <aside
             className={cn(
               "min-h-0 border-r border-emerald-100 bg-white/90 lg:block",
@@ -763,13 +800,14 @@ const WorkspaceApp = ({
 
           <section
             className={cn(
-              "min-h-0 border-r border-emerald-100 bg-emerald-50/80 lg:block",
+              "relative min-h-0 border-r border-emerald-100 bg-emerald-50/80 lg:block",
               activePane === "memos" ? "block" : "hidden"
             )}
           >
             <MemoListPane
               notebook={selectedNotebook}
               notebooks={notebooks}
+              user={user}
               view={memoView}
               memos={memos}
               selectedMemoId={selectedMemoId}
@@ -783,6 +821,8 @@ const WorkspaceApp = ({
               isMerging={mergeMutation.isPending}
               isMoving={moveMemosMutation.isPending}
               isDeleting={deleteMemosMutation.isPending || deleteMemoMutation.isPending}
+              isOnline={isOnline}
+              isSyncingQueuedChanges={isSyncingQueuedChanges}
               multiSelectKeyDown={multiSelectKeyDown}
               onOpenNotebookPicker={() => setMobileNotebookPickerOpen(true)}
               onSearch={setSearch}
@@ -827,6 +867,14 @@ const WorkspaceApp = ({
               onMoveMemo={handleMoveMemoFromList}
               onDeleteSelectedMemos={handleDeleteSelectedMemos}
               onMoveSelectedMemos={handleMoveSelectedMemos}
+              onSyncQueuedChanges={() => void runQueuedSync()}
+            />
+            <div
+              className="absolute inset-y-0 right-[-3px] z-20 hidden w-1.5 cursor-col-resize transition hover:bg-emerald-300/70 lg:block"
+              role="separator"
+              aria-orientation="vertical"
+              title="拖拽调整列表栏宽度"
+              onPointerDown={handleMemoListResizePointerDown}
             />
           </section>
 
@@ -916,6 +964,26 @@ const readImageCompressionPreference = () => {
 const writeImageCompressionPreference = (enabled: boolean) => {
   try {
     window.localStorage.setItem(IMAGE_COMPRESSION_STORAGE_KEY, enabled ? "true" : "false");
+  } catch {
+    // Local storage can be unavailable in private or restricted browser contexts.
+  }
+};
+
+const clampMemoListWidth = (width: number) =>
+  Math.min(MAX_MEMO_LIST_WIDTH_PX, Math.max(MIN_MEMO_LIST_WIDTH_PX, Math.round(width)));
+
+const readMemoListWidthPreference = () => {
+  try {
+    const width = Number(window.localStorage.getItem(MEMO_LIST_WIDTH_STORAGE_KEY));
+    return Number.isFinite(width) ? clampMemoListWidth(width) : DEFAULT_MEMO_LIST_WIDTH_PX;
+  } catch {
+    return DEFAULT_MEMO_LIST_WIDTH_PX;
+  }
+};
+
+const writeMemoListWidthPreference = (width: number) => {
+  try {
+    window.localStorage.setItem(MEMO_LIST_WIDTH_STORAGE_KEY, String(clampMemoListWidth(width)));
   } catch {
     // Local storage can be unavailable in private or restricted browser contexts.
   }
@@ -1378,6 +1446,65 @@ const MobileBottomNavButton = ({
   </button>
 );
 
+const MobileHomeHeader = ({
+  isOnline,
+  isSyncingQueuedChanges,
+  user,
+  onOpenListActions,
+  onSyncQueuedChanges,
+}: {
+  isOnline: boolean;
+  isSyncingQueuedChanges: boolean;
+  user: AuthUser | null;
+  onOpenListActions: () => void;
+  onSyncQueuedChanges: () => void;
+}) => {
+  const displayName = user?.displayName?.trim() || user?.username?.trim() || "EdgeEver";
+  const initial = displayName.charAt(0).toLocaleUpperCase("zh-CN") || "E";
+
+  return (
+    <div className="mb-4 flex h-12 items-center justify-between gap-3 lg:hidden">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800 shadow-[0_8px_18px_rgba(5,150,105,0.16)]">
+          {initial}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold text-slate-950">Hi {displayName}</div>
+          <div className="truncate text-xs text-slate-500">{isOnline ? "已连接 EdgeEver" : "离线模式"}</div>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-full transition",
+            isOnline ? "text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" : "bg-amber-50 text-amber-700"
+          )}
+          type="button"
+          title={isOnline ? "同步" : "离线"}
+          aria-label={isOnline ? "同步" : "离线"}
+          disabled={!isOnline || isSyncingQueuedChanges}
+          onClick={onSyncQueuedChanges}
+        >
+          {isOnline ? (
+            <RefreshCw className={cn("h-5 w-5", isSyncingQueuedChanges && "animate-spin")} />
+          ) : (
+            <CloudOff className="h-5 w-5" />
+          )}
+        </button>
+        <button
+          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+          type="button"
+          title="列表选项"
+          aria-label="列表选项"
+          onClick={onOpenListActions}
+        >
+          <MoreHorizontal className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const MobileQuickActions = ({
   canCreateMemo,
   isCreating,
@@ -1486,7 +1613,9 @@ const MobileNotebookPicker = ({
   onSelectAll: () => void;
   onSelect: (notebookId: string) => void;
 }) => {
+  const [notebookSearch, setNotebookSearch] = useState("");
   const tree = useMemo(() => buildNotebookTree(notebooks), [notebooks]);
+  const filteredTree = useMemo(() => filterNotebookTree(tree, notebookSearch), [notebookSearch, tree]);
   const allSelected = selectedNotebookId === null;
 
   return (
@@ -1507,7 +1636,35 @@ const MobileNotebookPicker = ({
             <X className="h-4 w-4" />
           </Button>
         </header>
-        <div className="max-h-[calc(76dvh_-_4.5rem_-_env(safe-area-inset-bottom))] overflow-y-auto p-2">
+        <div className="border-b border-slate-100 px-4 py-2">
+          <div className="flex h-9 items-center gap-2 rounded-md bg-slate-100 px-3 text-sm text-slate-500">
+            <Search className="h-4 w-4" />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
+              value={notebookSearch}
+              placeholder="搜索笔记本"
+              onChange={(event) => setNotebookSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && notebookSearch) {
+                  event.preventDefault();
+                  setNotebookSearch("");
+                }
+              }}
+            />
+            {notebookSearch ? (
+              <button
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-white hover:text-slate-700"
+                type="button"
+                title="清空搜索"
+                aria-label="清空搜索"
+                onClick={() => setNotebookSearch("")}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className="max-h-[calc(76dvh_-_7.75rem_-_env(safe-area-inset-bottom))] overflow-y-auto p-2">
           <button
             className={cn(
               "mb-1 flex h-12 w-full items-center gap-3 rounded-md px-3 text-left text-sm transition",
@@ -1521,15 +1678,19 @@ const MobileNotebookPicker = ({
             <span className="min-w-0 flex-1 truncate text-base">全部笔记</span>
             {allSelected ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> : null}
           </button>
-          {tree.map((node) => (
-            <MobileNotebookPickerItem
-              key={node.id}
-              node={node}
-              depth={0}
-              selectedNotebookId={selectedNotebookId}
-              onSelect={onSelect}
-            />
-          ))}
+          {filteredTree.length > 0 ? (
+            filteredTree.map((node) => (
+              <MobileNotebookPickerItem
+                key={node.id}
+                node={node}
+                depth={0}
+                selectedNotebookId={selectedNotebookId}
+                onSelect={onSelect}
+              />
+            ))
+          ) : (
+            <div className="px-3 py-8 text-center text-sm text-slate-500">没有找到笔记本</div>
+          )}
         </div>
       </section>
     </div>
@@ -1586,6 +1747,36 @@ const MobileNotebookPickerItem = ({
   );
 };
 
+const filterNotebookTree = (nodes: NotebookNode[], search: string): NotebookNode[] => {
+  const query = search.trim().toLocaleLowerCase("zh-CN");
+
+  if (!query) {
+    return nodes;
+  }
+
+  const walk = (items: NotebookNode[]): NotebookNode[] => {
+    const filteredNodes: NotebookNode[] = [];
+
+    for (const node of items) {
+      const children = walk(node.children);
+      const matched = node.name.toLocaleLowerCase("zh-CN").includes(query);
+
+      if (matched) {
+        filteredNodes.push({ ...node, children: node.children });
+        continue;
+      }
+
+      if (children.length > 0) {
+        filteredNodes.push({ ...node, children });
+      }
+    }
+
+    return filteredNodes;
+  };
+
+  return walk(nodes);
+};
+
 const mobileSortOptions: Array<{ value: MemoSortMode; label: string }> = [
   { value: "updated-desc", label: "最近更新" },
   { value: "created-desc", label: "创建时间" },
@@ -1625,7 +1816,16 @@ const MobileListActionsSheet = ({
         </Button>
       </header>
       <div className="p-2">
-        <div className="px-3 py-2 text-xs font-semibold uppercase text-slate-400">排序</div>
+        <MobileListActionButton
+          disabled={!canSelectMemos}
+          icon={<CheckSquare className="h-4 w-4" />}
+          label="选择笔记"
+          onClick={onEnterSelectionMode}
+        />
+
+        <div className="my-2 h-px bg-slate-100" />
+
+        <div className="px-3 py-2 text-xs font-semibold text-slate-400">排序方式</div>
         {mobileSortOptions.map((option) => (
           <button
             key={option.value}
@@ -1633,19 +1833,13 @@ const MobileListActionsSheet = ({
             type="button"
             onClick={() => onSortModeChange(option.value)}
           >
-            <CheckCircle2 className={cn("h-4 w-4", sortMode === option.value ? "text-emerald-600" : "text-transparent")} />
             <span className="min-w-0 flex-1 truncate">{option.label}</span>
+            <CheckCircle2 className={cn("h-4 w-4 shrink-0", sortMode === option.value ? "text-emerald-600" : "text-transparent")} />
           </button>
         ))}
 
         <div className="my-2 h-px bg-slate-100" />
 
-        <MobileListActionButton
-          disabled={!canSelectMemos}
-          icon={<CheckSquare className="h-4 w-4" />}
-          label="选择笔记"
-          onClick={onEnterSelectionMode}
-        />
         <MobileListActionButton icon={<Tags className="h-4 w-4" />} label="标签" onClick={onOpenTags} />
         <MobileListActionButton icon={<Archive className="h-4 w-4" />} label="附件" onClick={onOpenAssets} />
         <MobileListActionButton icon={<Trash2 className="h-4 w-4" />} label="回收站" onClick={onOpenTrash} />
@@ -1981,6 +2175,7 @@ const NotebookTreeItem = ({
 const MemoListPane = ({
   notebook,
   notebooks,
+  user,
   view,
   memos,
   selectedMemoId,
@@ -1994,6 +2189,8 @@ const MemoListPane = ({
   isMerging,
   isMoving,
   isDeleting,
+  isOnline,
+  isSyncingQueuedChanges,
   multiSelectKeyDown,
   onOpenNotebookPicker,
   onSearch,
@@ -2013,9 +2210,11 @@ const MemoListPane = ({
   onMoveMemo,
   onDeleteSelectedMemos,
   onMoveSelectedMemos,
+  onSyncQueuedChanges,
 }: {
   notebook: Notebook | null;
   notebooks: Notebook[];
+  user: AuthUser | null;
   view: MemoView;
   memos: MemoSummary[];
   selectedMemoId: string | null;
@@ -2029,6 +2228,8 @@ const MemoListPane = ({
   isMerging: boolean;
   isMoving: boolean;
   isDeleting: boolean;
+  isOnline: boolean;
+  isSyncingQueuedChanges: boolean;
   multiSelectKeyDown: boolean;
   onOpenNotebookPicker: () => void;
   onSearch: (value: string) => void;
@@ -2048,6 +2249,7 @@ const MemoListPane = ({
   onMoveMemo: (memoId: string, targetNotebookId: string) => void;
   onDeleteSelectedMemos: () => void;
   onMoveSelectedMemos: (notebookId: string) => void;
+  onSyncQueuedChanges: () => void;
 }) => {
   const [moveTargetNotebookId, setMoveTargetNotebookId] = useState(notebook?.id ?? notebooks[0]?.id ?? "");
   const [desktopActionsOpen, setDesktopActionsOpen] = useState(false);
@@ -2299,7 +2501,15 @@ const MemoListPane = ({
               {allVisibleMemosSelected ? "全不选" : "全选"}
             </button>
           </div>
-        ) : null}
+        ) : (
+          <MobileHomeHeader
+            isOnline={isOnline}
+            isSyncingQueuedChanges={isSyncingQueuedChanges}
+            user={user}
+            onOpenListActions={() => setMobileListActionsOpen(true)}
+            onSyncQueuedChanges={onSyncQueuedChanges}
+          />
+        )}
         <MobileQuickActions
           canCreateMemo={canCreateMemo && !selectionMode}
           isCreating={isCreating}
@@ -2328,15 +2538,6 @@ const MemoListPane = ({
               </div>
             </div>
           </div>
-          <Button
-            className="lg:hidden"
-            size="icon"
-            variant="ghost"
-            title="更多"
-            onClick={() => setMobileListActionsOpen(true)}
-          >
-            <MoreHorizontal className="h-5 w-5" />
-          </Button>
           <div className="hidden shrink-0 items-center gap-1 lg:flex">
             <select
               className="h-8 rounded-md border border-emerald-100 bg-white px-2 text-xs font-medium text-slate-700 outline-none"
@@ -3162,16 +3363,19 @@ const MemoCard = ({
     <article
       data-memo-id={memo.id}
       className={cn(
-        "group rounded-md border border-slate-100 bg-white shadow-[0_8px_22px_rgba(15,23,42,0.05)] transition lg:rounded-none lg:border-x-0 lg:border-t-0 lg:border-slate-200 lg:shadow-none lg:last:border-b-0",
-        !selectionMode && selected ? "lg:bg-slate-200" : checked ? "ring-1 ring-emerald-100 lg:ring-0" : "hover:bg-slate-50"
+        "group overflow-hidden rounded-xl border border-slate-100 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.06)] transition lg:rounded-none lg:border-x-0 lg:border-t-0 lg:border-slate-200 lg:shadow-none lg:last:border-b-0",
+        !selectionMode && selected
+          ? "lg:bg-slate-200"
+          : checked
+            ? "ring-1 ring-emerald-200 lg:ring-0"
+            : "active:bg-slate-50 lg:hover:bg-slate-50"
       )}
     >
-      <div className={cn("flex min-h-[128px] items-start", listDensity === "compact" && "lg:min-h-[76px]")}>
+      <div className={cn("flex min-h-[132px] items-center", listDensity === "compact" && "lg:min-h-[76px]")}>
         {showSelectionControl ? (
           <button
             className={cn(
-              "ml-4 mt-8 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition",
-              listDensity === "compact" && "lg:mt-6",
+              "ml-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition",
               checked ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white text-transparent"
             )}
             type="button"
@@ -3187,8 +3391,8 @@ const MemoCard = ({
         ) : null}
         <button
           className={cn(
-            "min-w-0 flex-1 select-none px-4 py-4 text-left touch-pan-y [-webkit-touch-callout:none]",
-            showSelectionControl && "pl-3",
+            "min-w-0 flex-1 select-none px-4 py-4 text-left touch-pan-y [-webkit-touch-callout:none] lg:py-4",
+            showSelectionControl && "pl-3 lg:pl-3",
             multiSelectKeyDown && "cursor-copy"
           )}
           onMouseDown={handleMouseDown}
@@ -3201,7 +3405,7 @@ const MemoCard = ({
           onContextMenu={handleContextMenu}
           title="Ctrl/Cmd 点击切换选择，Shift 点击连续选择，移动端长按进入选择"
         >
-          <div className="mb-2 truncate text-base font-semibold leading-6 text-slate-900">{memoTitle}</div>
+          <div className="mb-2 truncate text-base font-semibold leading-6 text-slate-900 lg:text-base">{memoTitle}</div>
           <div
             className={cn(
               "line-clamp-2 min-h-10 text-[15px] leading-5 text-slate-600",
@@ -3211,7 +3415,7 @@ const MemoCard = ({
             {memoExcerpt}
           </div>
           <div className={cn("mt-5 flex flex-wrap items-center gap-2", listDensity === "compact" && "lg:mt-2")}>
-            <time className="text-sm text-slate-500">{formatMemoPreviewDate(memo.updatedAt)}</time>
+            <time className="text-xs font-medium text-slate-400 lg:text-sm lg:font-normal lg:text-slate-500">{formatMemoPreviewDate(memo.updatedAt)}</time>
             {memo.tags.slice(0, 3).map((tag) => (
               <span key={tag} className="rounded-sm bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
                 #{tag}
@@ -4572,6 +4776,21 @@ const EditorPane = ({
         : saveState === "saving" || hasUnsavedChanges
           ? "bg-emerald-50 text-emerald-700"
           : "bg-slate-100 text-slate-500";
+  const imageUploadLabel =
+    imageUploadState === "error"
+      ? "图片失败"
+      : imageUploadState === "compressing"
+        ? "压缩中"
+        : imageUploadState === "uploading"
+          ? "上传中"
+          : null;
+  const mobileStatusLabel = imageUploadLabel ?? saveLabel;
+  const mobileStatusClassName =
+    imageUploadState === "error"
+      ? "bg-rose-50 text-rose-700"
+      : imageUploadState !== "idle"
+        ? "bg-emerald-50 text-emerald-700"
+        : saveStateClassName;
   const updatedLabel = formatDateTime(memo.updatedAt);
 
   return (
@@ -4582,6 +4801,26 @@ const EditorPane = ({
             <Button className="lg:hidden" size="icon" variant="ghost" title="返回列表" onClick={onBackToList}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
+            <div className="flex items-center gap-1 lg:hidden">
+              <button
+                className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-30"
+                type="button"
+                title="上一条笔记"
+                disabled={!hasPreviousMemo}
+                onClick={onOpenPreviousMemo}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 transition hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-30"
+                type="button"
+                title="下一条笔记"
+                disabled={!hasNextMemo}
+                onClick={onOpenNextMemo}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
             <div className="hidden items-center gap-1 lg:flex">
               <Button size="icon" variant="ghost" title="上一条笔记" onClick={onOpenPreviousMemo} disabled={!hasPreviousMemo}>
                 <ChevronLeft className="h-4 w-4" />
@@ -4592,7 +4831,7 @@ const EditorPane = ({
             </div>
             <select
               value={memo.notebookId}
-              className="h-8 min-w-0 max-w-[180px] rounded-md border border-transparent bg-transparent px-2 text-xs font-medium text-slate-700 outline-none hover:border-emerald-100 hover:bg-emerald-50/70 sm:max-w-[260px]"
+              className="h-8 min-w-0 max-w-[112px] rounded-md border border-transparent bg-transparent px-2 text-xs font-medium text-slate-700 outline-none hover:border-emerald-100 hover:bg-emerald-50/70 sm:max-w-[260px]"
               disabled={readOnly}
               onChange={(event) => {
                 void api
@@ -4634,6 +4873,9 @@ const EditorPane = ({
             ) : null}
             <span className={cn("hidden rounded-md px-2 py-1 text-xs font-medium sm:inline-flex", saveStateClassName)}>
               {saveLabel}
+            </span>
+            <span className={cn("inline-flex max-w-[4rem] truncate rounded-full px-2 py-1 text-[11px] font-medium sm:hidden", mobileStatusClassName)}>
+              {mobileStatusLabel}
             </span>
             <Button className="hidden sm:inline-flex" size="icon" variant="ghost" title="版本历史" onClick={() => setHistoryOpen(true)}>
               <History className="h-4 w-4" />
