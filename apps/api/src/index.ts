@@ -22,6 +22,7 @@ import {
   type MemoRevision,
   type MemoSummary,
   type Notebook,
+  type NotebookCreateInput,
   type Resource,
   type ResourceListItem,
   type ResourceStorageSummary,
@@ -465,20 +466,17 @@ app.post("/api/v1/notebooks", zValidator("json", NotebookCreateSchema), async (c
 
   const input = c.req.valid("json");
   const actor = getAuditActor(c);
-  const id = createId("nb");
-  const now = isoNow();
 
-  await c.env.DB.prepare(
-    `INSERT INTO notebooks (id, parent_id, name, slug, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(id, input.parentId ?? null, input.name, slugify(input.name), Date.now(), now, now)
-    .run();
+  try {
+    const notebook = await createNotebookRecord(c.env.DB, input, actor);
+    return c.json({ notebook }, 201);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return apiError(c, error.code, error.message, error.status);
+    }
 
-  const notebook = await getNotebook(c.env.DB, id);
-  await audit(c.env.DB, actor.actorType, actor.actorId, "notebook.create", "notebook", id, { name: input.name });
-
-  return c.json({ notebook }, 201);
+    throw error;
+  }
 });
 
 app.patch("/api/v1/notebooks/:id", zValidator("json", NotebookUpdateSchema), async (c) => {
@@ -1845,6 +1843,20 @@ const MCP_TOOLS = [
     },
   },
   {
+    name: "create_notebook",
+    description: "Create a notebook at the root or under another notebook.",
+    inputSchema: {
+      type: "object",
+      required: ["name"],
+      additionalProperties: false,
+      properties: {
+        name: { type: "string", minLength: 1, maxLength: 80 },
+        parentId: { type: ["string", "null"] },
+        sortOrder: { type: "integer" },
+      },
+    },
+  },
+  {
     name: "list_notebooks",
     description: "List active notebooks.",
     inputSchema: {
@@ -2006,6 +2018,27 @@ const callMcpTool = async (
         c.env.DB,
         getRequiredString(args.notebookId, "notebookId"),
         {
+          parentId: args.parentId === null ? null : getOptionalString(args.parentId) ?? undefined,
+          sortOrder: typeof args.sortOrder === "number" && Number.isInteger(args.sortOrder) ? args.sortOrder : undefined,
+        },
+        actor
+      );
+
+      return { notebook };
+    }
+    case "create_notebook": {
+      assertScope(auth, "write:notebooks");
+      const actor = getAuditActor(c);
+      const name = getRequiredString(args.name, "name");
+
+      if (name.length > 80) {
+        throw new AppError("invalid_params", "name must be at most 80 characters", 400);
+      }
+
+      const notebook = await createNotebookRecord(
+        c.env.DB,
+        {
+          name,
           parentId: args.parentId === null ? null : getOptionalString(args.parentId) ?? undefined,
           sortOrder: typeof args.sortOrder === "number" && Number.isInteger(args.sortOrder) ? args.sortOrder : undefined,
         },
@@ -2781,6 +2814,44 @@ const getNotebook = async (db: D1Database, id: string): Promise<Notebook | null>
     .first<NotebookRow>();
 
   return row ? mapNotebook(row) : null;
+};
+
+const createNotebookRecord = async (
+  db: D1Database,
+  input: NotebookCreateInput & { sortOrder?: number },
+  actor: { actorType: "user" | "agent"; actorId: string | null }
+) => {
+  const parentId = input.parentId ?? null;
+
+  if (parentId && !(await getNotebook(db, parentId))) {
+    throw new AppError("not_found", "Parent notebook not found", 404);
+  }
+
+  const id = createId("nb");
+  const now = isoNow();
+  const sortOrder = input.sortOrder ?? Date.now();
+
+  await db.batch([
+    db
+      .prepare(
+        `INSERT INTO notebooks (id, parent_id, name, slug, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, parentId, input.name, slugify(input.name), sortOrder, now, now),
+    auditStatement(db, actor.actorType, actor.actorId, "notebook.create", "notebook", id, {
+      name: input.name,
+      parentId,
+      sortOrder,
+    }),
+  ]);
+
+  const notebook = await getNotebook(db, id);
+
+  if (!notebook) {
+    throw new AppError("not_found", "Notebook not found after create", 404);
+  }
+
+  return notebook;
 };
 
 const updateNotebookRecord = async (

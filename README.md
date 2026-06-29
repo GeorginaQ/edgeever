@@ -150,7 +150,7 @@ stdio MCP 示例：
 - `command` 需要本机已安装 Bun。
 - `args` 改成你本机 EdgeEver 仓库里的绝对路径。
 - `EDGEEVER_TOKEN` 来自 EdgeEver 左侧 **设置**。
-- 只读 Agent 建议 scopes：`read:notebooks`、`read:memos`、`read:tags`；需要写入再加 `write:memos`。
+- 只读 Agent 建议 scopes：`read:notebooks`、`read:memos`、`read:tags`；需要写入笔记再加 `write:memos`，需要创建或移动笔记本再加 `write:notebooks`。
 
 ## 开发者工具
 
