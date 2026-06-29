@@ -48,7 +48,7 @@ export const EvernoteImportCard = () => {
       const parsed = await parseEvernoteExportFiles(files);
 
       if (parsed.length === 0) {
-        throw new Error("请选择 .notes 或 .enex 文件。");
+        throw new Error("请选择 .enex 文件。");
       }
 
       setNotebooks(parsed);
@@ -135,7 +135,7 @@ export const EvernoteImportCard = () => {
           导入印象笔记
         </CardTitle>
         <CardDescription className="text-xs leading-4">
-          按笔记本选择 .notes 或 .enex 文件，EdgeEver 会逐个笔记本导入并保留原始创建、修改时间。
+          按笔记本选择 .enex 文件，EdgeEver 会逐个笔记本导入并保留原始创建、修改时间。
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 p-4 pt-0">
@@ -153,7 +153,7 @@ export const EvernoteImportCard = () => {
             ref={inputRef}
             className="hidden"
             type="file"
-            accept=".notes,.enex"
+            accept=".enex"
             multiple
             onChange={(event) => void handleFilesChange(event)}
           />

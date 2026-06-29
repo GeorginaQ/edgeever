@@ -1,128 +1,89 @@
 # 从印象笔记迁移到 EdgeEver
 
-本文档说明如何把印象笔记笔记按笔记本逐个迁移到 EdgeEver。迁移工具通过 EdgeEver MCP 写入数据，适合需要可检查、可暂停、可回滚节奏的迁移场景。
+EdgeEver 的印象笔记导入功能只支持开放、可读取的 ENEX 文件。EdgeEver 不直接支持印象笔记新版客户端导出的 `.notes` 文件。
 
-普通产品用户可以直接在 EdgeEver Web 应用的 PC 端设置页中导入，不需要克隆 EdgeEver 源码仓库。仓库内脚本主要面向自托管管理员、开发者和需要命令行批处理的高级用户。
+这样做是为了降低迁移风险：ENEX 是可解析的 XML 格式，可以读取标题、正文、标签、创建时间和修改时间；新版 `.notes` 可能包含加密内容，EdgeEver 无法可靠验证其中数据。
 
-## 迁移前准备
+## 准备 ENEX 文件
 
-如果你是普通产品用户，请在电脑浏览器中打开 EdgeEver，进入左侧“个人中心 / 我的”，使用“导入印象笔记”入口。移动端不开放该入口，因为 `.notes` 文件通常较大，且逐笔记本确认更适合 PC 操作。
+如果你的印象笔记客户端仍能直接导出 ENEX，可以按笔记本分别导出 `.enex` 文件。
 
-1. 在 EdgeEver 左侧设置里创建一个 API Token。
-2. Token 至少需要这些 scopes：
-   - `read:notebooks`
-   - `write:notebooks`
-   - `write:memos`
-3. 在印象笔记客户端中按笔记本分别导出 `.notes` 文件。如果你的客户端仍支持 `.enex`，也可以使用 `.enex`。
-4. 把所有 `.notes` 或 `.enex` 文件放到同一个目录，文件名会作为 EdgeEver 笔记本名称，例如：
+如果客户端只能导出 `.notes`，可以参考第三方命令行工具 `evernote-backup` 先导出 ENEX：
 
-```text
-evernote-export/
-  工作项目.notes
-  学习资料.notes
-  生活记录.notes
+```sh
+pipx install evernote-backup
+evernote-backup init-db --backend china
+evernote-backup sync
+evernote-backup export ./edgeever-import
 ```
 
-建议一次只迁移一个账号的数据。迁移前保留原始 `.notes` / `.enex` 文件，不要在导入完成前删除印象笔记中的原笔记。
+说明：
+
+- `--backend china` 用于连接印象笔记中国版。
+- `sync` 会把账号里的笔记同步到本地数据库。
+- `export ./edgeever-import` 会导出 ENEX 文件。
+- `evernote-backup` 默认会按笔记本导出，一个笔记本对应一个 `.enex` 文件。
+
+请把生成的 `.enex` 文件放在一个容易找到的目录中。文件名会作为 EdgeEver 导入时的目标笔记本名称。
 
 ## 在 Web 应用中导入
 
 1. 在电脑浏览器中打开 EdgeEver。
 2. 进入左侧“个人中心 / 我的”。
 3. 找到“导入印象笔记”。
-4. 选择一个或多个 `.notes` / `.enex` 文件。
+4. 选择一个或多个 `.enex` 文件。
 5. 检查导入计划中的笔记本数量和笔记数量。
 6. 点击“开始导入”。
 7. 每导完一个笔记本，先在 EdgeEver 中检查结果，再点击“确认结果，继续下一个”。
 
-Web 导入会强制校验时间字段：如果导出文件中某条笔记缺少合法的创建时间或更新时间，导入会停止；如果 EdgeEver 创建后的 `createdAt` 或 `updatedAt` 与印象笔记原始时间不一致，导入也会停止并显示对应笔记标题。
+移动端不开放导入入口。ENEX 文件通常较大，逐笔记本确认也更适合 PC 操作。
 
-## 使用命令行脚本
+## 时间校验
 
-命令行脚本适合自托管管理员或开发者批量处理迁移。普通产品用户优先使用上面的 Web 导入入口。
+EdgeEver 会强制保留印象笔记原始创建时间和修改时间：
 
-本节命令需要在 EdgeEver 项目源码目录中运行，并且本机已经安装 Bun。这是当前自托管/开发者迁移工具的要求，不是长期面向普通用户的理想交互。
+- 如果 ENEX 中某条笔记缺少合法的创建时间或修改时间，导入会停止。
+- 如果 EdgeEver 创建后的 `createdAt` 或 `updatedAt` 与 ENEX 原始时间不一致，导入会停止并显示对应笔记标题。
 
-可以直接使用环境变量：
+## 命令行导入
 
-```sh
-EDGEEVER_URL=https://你的域名 \
-EDGEEVER_TOKEN=<api-token> \
-bun run import:evernote -- --input ./evernote-export --dry-run
-```
+仓库内也提供命令行脚本，主要面向自托管管理员、开发者和需要批处理的高级用户。普通产品用户优先使用 Web 导入入口。
 
-也可以先保存为本机 profile：
+先配置 EdgeEver 连接：
 
 ```sh
 bun run cli -- profile set prod --url https://你的域名 --token <api-token>
-bun run import:evernote -- --profile prod --input ./evernote-export --dry-run
 ```
 
-## 先生成导入计划
+API Token 至少需要这些 scopes：
 
-正式导入前先 dry-run：
+- `read:notebooks`
+- `write:notebooks`
+- `write:memos`
+
+先生成导入计划：
 
 ```sh
-bun run import:evernote -- --profile prod --input ./evernote-export --dry-run
+bun run import:evernote -- --profile prod --input ./edgeever-import --dry-run
 ```
 
-检查输出里的笔记本数量、笔记数量和导出文件路径是否符合预期。如果发现笔记本名称不对，先修改导出文件名再重新 dry-run。
-
-如果 dry-run 提示 `encoding="base64:aes"`，说明这个 `.notes` 文件是印象笔记加密导出文件，EdgeEver 不能直接读取其中内容。此时不要正式导入，改用未加密导出、HTML 导出，或使用可信的备份/转换工具先转换为可读的 ENEX/Markdown，并确认转换结果仍保留原始创建时间和更新时间。
-
-## 正式导入
-
-确认计划无误后执行：
+确认计划无误后正式导入：
 
 ```sh
-bun run import:evernote -- --profile prod --input ./evernote-export
+bun run import:evernote -- --profile prod --input ./edgeever-import
 ```
 
-导入流程会按文件名排序逐个处理笔记本：
-
-1. 如果 EdgeEver 已有同名根笔记本，工具会复用它。
-2. 如果没有同名根笔记本，工具会创建新笔记本。
-3. 工具逐条创建笔记，并保留标题、Markdown 内容、标签、创建时间和更新时间。
-4. 每导完一个笔记本，工具会输出本次创建条数和该笔记本的计数变化。
-5. 你需要打开 EdgeEver 检查结果，然后在终端输入 `yes` 才会继续下一个笔记本。
-
-如果检查结果不符合预期，不要输入 `yes`。工具会停止，已经导入的笔记会保留在 EdgeEver 中，方便你先检查或手动清理。
-
-迁移工具会强制校验时间字段：如果导出文件中某条笔记缺少合法的创建时间或更新时间，导入会停止；如果 EdgeEver 创建后的 `createdAt` 或 `updatedAt` 与印象笔记原始时间不一致，导入也会停止并显示对应笔记标题。
-
-## 无人值守导入
-
-如果已经在测试环境验证过，也可以跳过每个笔记本后的确认：
-
-```sh
-bun run import:evernote -- --profile prod --input ./evernote-export --yes
-```
-
-不建议第一次迁移时使用 `--yes`。
-
-## 附件和图片说明
-
-当前迁移工具主要迁移笔记文本内容、标题、标签和时间。印象笔记导出文件中的图片和附件会被转换成 `evernote-resource:<hash>` 形式的占位链接，便于后续定位原始资源。
-
-建议处理方式：
-
-1. 先完成文本迁移，确认笔记数量和主要内容无误。
-2. 保留原始 `.notes` / `.enex` 文件作为附件来源。
-3. 对重要笔记中的图片或附件，后续可通过 EdgeEver 的资源上传能力补传到对应笔记。
+命令行脚本也会按 ENEX 文件逐个笔记本导入，每导完一个笔记本后等待确认。
 
 ## 常见问题
 
-### 导入中断了怎么办？
+### EdgeEver 为什么不直接支持 `.notes`？
 
-重新运行同一条命令即可。工具会复用同名根笔记本，但不会自动去重已经导入过的笔记。为了避免重复，建议先在 EdgeEver 中检查最后一个已导入笔记本，必要时手动清理后再继续。
+印象笔记新版 `.notes` 文件可能包含 `encoding="base64:aes"` 加密内容。EdgeEver 无法可靠读取和校验这类文件，因此产品层面只承诺支持 ENEX。
 
-### 为什么要求一个笔记本一个导出文件？
+### 附件和图片会怎样？
 
-印象笔记导出文件本身不稳定携带原始笔记本层级。用“一个笔记本一个导出文件”的方式，可以让文件名成为明确的目标笔记本名称，也方便每导完一个笔记本后人工确认。
-
-### 能保留印象笔记的创建和更新时间吗？
-
-必须保留。迁移工具会读取导出文件中的 `created` 和 `updated` 字段，并通过 EdgeEver MCP 写入 `createdAt` 和 `updatedAt`。工具还会在每条笔记创建后校验 EdgeEver 返回的时间；只要创建时间或更新时间不一致，就会停止导入，避免继续写入有问题的数据。
+当前导入主要迁移文本内容、标题、标签和时间。ENEX 中的图片和附件会被转换成 `evernote-resource:<hash>` 形式的占位链接，便于后续定位原始资源。
 
 ### 笔记格式会完全一致吗？
 

@@ -2,7 +2,7 @@
 
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { homedir } from "node:os";
 import { XMLParser } from "fast-xml-parser";
@@ -12,7 +12,7 @@ const CONFIG_PATH = process.env.EDGEEVER_CONFIG || join(homedir(), ".edgeever", 
 const DEFAULT_URL = "http://127.0.0.1:8787";
 const options = parseOptions(process.argv.slice(2));
 
-const usage = `Import Evernote ENEX/NOTES files into EdgeEver through MCP.
+const usage = `Import Evernote ENEX files into EdgeEver through MCP.
 
 Usage:
   EDGEEVER_URL=https://your.edgeever.host EDGEEVER_TOKEN=... \\
@@ -21,7 +21,7 @@ Usage:
   bun scripts/import-evernote-enex-via-mcp.mjs --profile prod --input ./evernote-export --dry-run
 
 Options:
-  --input <path>      ENEX/NOTES file or a directory containing one export file per notebook.
+  --input <path>      ENEX file or a directory containing one ENEX file per notebook.
   --profile <name>   Read URL and token from ~/.edgeever/config.json.
   --dry-run          Parse and print the plan without writing to EdgeEver.
   --yes              Import all notebooks without interactive confirmations.
@@ -51,7 +51,7 @@ async function main() {
   const notebooks = await readEnexNotebooks(inputPath);
 
   if (notebooks.length === 0) {
-    throw new Error(`No .enex or .notes files found: ${inputPath}`);
+    throw new Error(`No .enex files found: ${inputPath}`);
   }
 
   printPlan(notebooks);
@@ -140,8 +140,8 @@ async function listEnexFiles(path) {
     return [path];
   }
 
-  if (path.toLowerCase().endsWith(".notes")) {
-    return [path];
+  if ((await stat(path)).isFile()) {
+    throw new Error(`${path} is not an .enex file.`);
   }
 
   const entries = await readdir(path, { withFileTypes: true });
@@ -170,13 +170,13 @@ async function parseEnex(filePath) {
 
 function isSupportedExportFile(filePath) {
   const normalized = filePath.toLowerCase();
-  return normalized.endsWith(".enex") || normalized.endsWith(".notes");
+  return normalized.endsWith(".enex");
 }
 
 function assertReadableEvernoteXml(xml, filePath) {
   if (/encoding\s*=\s*["']base64:aes["']/i.test(xml)) {
     throw new Error(
-      `${filePath} is an encrypted .notes export (encoding="base64:aes"). EdgeEver cannot import encrypted NOTES files because Yinxiang has not published the decryption key. Export an unencrypted NOTES/ENEX file, export HTML, or use a trusted backup/export tool that can produce ENEX/Markdown with original timestamps.`
+      `${filePath} is not a supported ENEX file. Export or convert your notes to .enex before importing.`
     );
   }
 

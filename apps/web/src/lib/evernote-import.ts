@@ -33,7 +33,7 @@ export const parseEvernoteExportFiles = async (files: File[]): Promise<EvernoteI
 
 export const isSupportedEvernoteExportFile = (file: File) => {
   const normalized = file.name.toLowerCase();
-  return normalized.endsWith(".notes") || normalized.endsWith(".enex");
+  return normalized.endsWith(".enex");
 };
 
 const parseEvernoteXml = (xml: string, fileName: string): EvernoteImportNote[] => {
@@ -123,11 +123,11 @@ const evernoteContentToMarkdown = (content: string) => {
 
 const assertReadableEvernoteXml = (xml: string, fileName: string) => {
   if (/encoding\s*=\s*["']base64:aes["']/i.test(xml)) {
-    throw new Error(`${fileName} 是加密 .notes 文件，EdgeEver 不能直接读取其中内容。请改用未加密导出、HTML 导出，或先转换为可读的 ENEX/Markdown。`);
+    throw new Error(`${fileName} 不是 EdgeEver 支持的 ENEX 文件。请先导出或转换为 .enex 后再导入。`);
   }
 
-  if (!/<en-export[\s>]/i.test(xml) || !/<note[\s>]/i.test(xml)) {
-    throw new Error(`${fileName} 看起来不是可读取的印象笔记 XML 导出文件。`);
+  if (!fileName.toLowerCase().endsWith(".enex") || !/<en-export[\s>]/i.test(xml) || !/<note[\s>]/i.test(xml)) {
+    throw new Error(`${fileName} 看起来不是可读取的 ENEX 文件。`);
   }
 };
 
@@ -164,6 +164,6 @@ const enexDateToIso = (value: string) => {
 
 const notebookNameFromFile = (fileName: string) =>
   fileName
-    .replace(/\.(notes|enex)$/i, "")
+    .replace(/\.enex$/i, "")
     .trim()
     .slice(0, 80) || "Evernote Import";
