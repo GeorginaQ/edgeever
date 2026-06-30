@@ -55,7 +55,7 @@ import type {
   MemoSortMode,
   MemoListDensity,
   MemoContextMenuState,
-  MemoSelectionContextMenuState,
+  NotebookMoveOption,
 } from "@/lib/app-helpers";
 import type { SyncQueueSummary } from "@/lib/sync-queue";
 import {
@@ -81,6 +81,128 @@ const MobileSelectionMoreSheet = lazy(() =>
 );
 
 const getSelectionCountLabel = (count: number) => (count > 0 ? `已选择 ${count} 条` : "选择笔记");
+
+export const MemoSelectionActionBar = ({
+  deleteTitle,
+  isDeleting,
+  isMerging,
+  isMoving,
+  isPinning,
+  isTrashView,
+  mergeTitle,
+  moveNotebookOptions,
+  moveTargetNotebookId,
+  moveTitle,
+  onClearSelection,
+  onDelete,
+  onMerge,
+  onMove,
+  onPin,
+  pinLabel,
+  pinTarget,
+  pinTitle,
+  selectedCount,
+  onMoveTargetChange,
+}: {
+  deleteTitle: string;
+  isDeleting: boolean;
+  isMerging: boolean;
+  isMoving: boolean;
+  isPinning: boolean;
+  isTrashView: boolean;
+  mergeTitle: string;
+  moveNotebookOptions: NotebookMoveOption[];
+  moveTargetNotebookId: string;
+  moveTitle: string;
+  onClearSelection: () => void;
+  onDelete: () => void;
+  onMerge: () => void;
+  onMove: () => void;
+  onPin: () => void;
+  pinLabel: string;
+  pinTarget: boolean;
+  pinTitle: string;
+  selectedCount: number;
+  onMoveTargetChange: (notebookId: string) => void;
+}) => (
+  <div className="hidden h-full min-h-0 flex-1 items-center justify-start bg-white px-16 py-10 lg:flex xl:px-24">
+    <div className="w-72 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+      <div className="flex h-9 items-center gap-2 px-3 text-xs font-semibold text-slate-400">
+        <CheckSquare className="h-4 w-4" />
+        {getSelectionCountLabel(selectedCount)}
+      </div>
+      {!isTrashView && moveNotebookOptions.length > 0 && (
+        <div className="border-t border-slate-100 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Select value={moveTargetNotebookId} disabled={isMoving} onValueChange={onMoveTargetChange}>
+              <SelectTrigger className="h-8 min-w-0 flex-1 text-xs text-slate-700 border-slate-200">
+                <SelectValue placeholder="选择笔记本" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60 bg-white border border-slate-200 rounded-md py-1 shadow-md">
+                {moveNotebookOptions.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.selectLabel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="soft"
+              title={moveTitle}
+              onClick={onMove}
+              disabled={selectedCount === 0 || !moveTargetNotebookId || isMoving || isTrashView}
+            >
+              <Folder className="h-4 w-4" />
+              移动
+            </Button>
+          </div>
+        </div>
+      )}
+      <Button
+        className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
+        variant="ghost"
+        title={pinTitle}
+        onClick={onPin}
+        disabled={selectedCount === 0 || isPinning || isTrashView}
+      >
+        <Star className={cn("h-4 w-4", !pinTarget && "fill-current text-slate-700")} />
+        {pinLabel}
+      </Button>
+      <Button
+        className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
+        variant="ghost"
+        title={mergeTitle}
+        onClick={onMerge}
+        disabled={selectedCount < 2 || isMerging || isTrashView}
+      >
+        <Merge className="h-4 w-4" />
+        合并笔记
+      </Button>
+      <div className="h-px bg-slate-100" />
+      <Button
+        className="h-11 w-full justify-start rounded-none px-3 text-rose-700 hover:bg-rose-50 hover:text-rose-700"
+        variant="ghost"
+        title={deleteTitle}
+        onClick={onDelete}
+        disabled={selectedCount === 0 || isDeleting}
+      >
+        <Trash2 className="h-4 w-4" />
+        {isTrashView ? "永久删除" : "删除"}
+      </Button>
+      <div className="h-px bg-slate-100" />
+      <Button
+        className="h-11 w-full justify-start rounded-none px-3 text-slate-700 hover:bg-slate-50"
+        variant="ghost"
+        title="取消选择"
+        onClick={onClearSelection}
+      >
+        <X className="h-4 w-4" />
+        取消选择
+      </Button>
+    </div>
+  </div>
+);
 
 const getMobileFilterIcon = (filterMode: MemoFilterMode) => {
   if (filterMode === "tagged") {
@@ -292,7 +414,6 @@ export const MemoListPane = ({
   onRetry: () => void;
 }) => {
   const [memoContextMenu, setMemoContextMenu] = useState<MemoContextMenuState | null>(null);
-  const [selectionContextMenu, setSelectionContextMenu] = useState<MemoSelectionContextMenuState | null>(null);
   const [contextMoveOpen, setContextMoveOpen] = useState(false);
   const [filterMode, setFilterMode] = useState<MemoFilterMode>("all");
   const [sortMode, setSortMode] = useState<MemoSortMode>("updated-desc");
@@ -514,7 +635,6 @@ export const MemoListPane = ({
     setDesktopSortOpen(false);
     setContextMoveOpen(false);
     setMemoContextMenu(null);
-    setSelectionContextMenu(null);
     setMobileListActionsOpen(false);
     setMobileMoveOpen(false);
     setMobileMoreOpen(false);
@@ -557,19 +677,7 @@ export const MemoListPane = ({
     const y = Math.min(clientY, Math.max(12, window.innerHeight - menuHeight - 12));
 
     setContextMoveOpen(false);
-    setSelectionContextMenu(null);
     setMemoContextMenu({ memo, x, y });
-  };
-
-  const openSelectionContextMenuAt = (clientX: number, clientY: number) => {
-    const menuWidth = 224;
-    const menuHeight = view === "trash" ? 128 : 272;
-    const x = Math.min(clientX, Math.max(12, window.innerWidth - menuWidth - 12));
-    const y = Math.min(clientY, Math.max(12, window.innerHeight - menuHeight - 12));
-
-    setContextMoveOpen(false);
-    setMemoContextMenu(null);
-    setSelectionContextMenu({ x, y });
   };
 
   const handleOpenMemoContextMenu = (memo: MemoSummary, event: MouseEvent<HTMLElement>) => {
@@ -585,7 +693,9 @@ export const MemoListPane = ({
       handleToggleMemo(memo.id, event);
     }
 
-    openSelectionContextMenuAt(event.clientX, event.clientY);
+    event.preventDefault();
+    setContextMoveOpen(false);
+    setMemoContextMenu(null);
   };
 
   const handleOpenSelectionKeyboardContextMenu = (memo: MemoSummary, target: HTMLElement) => {
@@ -597,8 +707,8 @@ export const MemoListPane = ({
       handleToggleMemo(memo.id);
     }
 
-    const rect = target.getBoundingClientRect();
-    openSelectionContextMenuAt(rect.left + Math.min(rect.width, 224), rect.top + Math.min(rect.height, 96));
+    setContextMoveOpen(false);
+    setMemoContextMenu(null);
   };
 
   const handleOpenMemoKeyboardContextMenu = (memo: MemoSummary, target: HTMLElement) => {
@@ -684,7 +794,6 @@ export const MemoListPane = ({
       event.preventDefault();
       event.stopPropagation();
       setMemoContextMenu(null);
-      setSelectionContextMenu(null);
       onClearSelection();
       setLastSelectedMemoId(null);
       return;
@@ -696,7 +805,6 @@ export const MemoListPane = ({
       }
       event.preventDefault();
       setMemoContextMenu(null);
-      setSelectionContextMenu(null);
       handleSelectAllVisibleMemos();
       return;
     }
@@ -709,7 +817,6 @@ export const MemoListPane = ({
       if (selectionMode && selectedMemoIds.size > 0) {
         event.preventDefault();
         setMemoContextMenu(null);
-        setSelectionContextMenu(null);
         onDeleteSelectedMemos();
         return;
       }
@@ -720,7 +827,6 @@ export const MemoListPane = ({
 
       event.preventDefault();
       setMemoContextMenu(null);
-      setSelectionContextMenu(null);
       onDeleteMemo(selectedMemoId);
       return;
     }
@@ -1080,89 +1186,6 @@ export const MemoListPane = ({
         ref={listScrollRef}
         className="relative min-h-0 flex-1 overflow-y-auto p-3 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-3"
       >
-        {selectionMode && (
-          <div className="sticky top-0 z-10 mb-3 hidden flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 shadow-panel lg:flex">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <CheckSquare className="h-4 w-4 text-slate-500" />
-              {selectionCountLabel}
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                title={selectionToggleTitle}
-                onClick={allVisibleMemosSelected ? handleClearVisibleMemos : handleSelectAllVisibleMemos}
-                disabled={!canToggleVisibleMemoSelection}
-              >
-                <CheckSquare className="h-4 w-4" />
-                {allVisibleMemosSelected ? "全不选" : "全选"}
-              </Button>
-              <Button size="sm" variant="ghost" title="取消选择" onClick={onClearSelection}>
-                <X className="h-4 w-4" />
-                取消
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                title={selectionPinTitle}
-                onClick={() => onPinSelectedMemos(selectedPinTarget)}
-                disabled={selectedMemoIds.size === 0 || isPinning || view === "trash"}
-              >
-                <Star className="h-4 w-4" />
-                {selectionPinLabel}
-              </Button>
-              {view !== "trash" && notebooks.length > 0 && (
-                <Select
-                  value={moveTargetNotebookId}
-                  disabled={isMoving}
-                  onValueChange={(value) => setMoveTargetNotebookId(value)}
-                >
-                  <SelectTrigger className="h-8 max-w-40 text-xs text-slate-700 border-slate-200">
-                    <SelectValue placeholder="选择笔记本" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 bg-white border border-slate-200 rounded-md py-1 shadow-md">
-                    {moveNotebookOptions.map((item) => (
-                      <SelectItem key={item.id} value={item.id} disabled={item.id === notebook?.id}>
-                        {item.selectLabel}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <Button
-                size="sm"
-                variant="soft"
-                title={selectionMoveTitle}
-                onClick={() => onMoveSelectedMemos(moveTargetNotebookId)}
-                disabled={selectedMemoIds.size === 0 || !moveTargetNotebookId || isMoving || view === "trash"}
-              >
-                <Folder className="h-4 w-4" />
-                移动
-              </Button>
-              <Button
-                size="sm"
-                variant="solid"
-                title={selectionMergeTitle}
-                onClick={onMerge}
-                disabled={selectedMemoIds.size < 2 || isMerging || view === "trash"}
-              >
-                <Merge className="h-4 w-4" />
-                合并
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                title={selectionDeleteTitle}
-                onClick={onDeleteSelectedMemos}
-                disabled={selectedMemoIds.size === 0 || isDeleting}
-              >
-                <Trash2 className="h-4 w-4" />
-                {view === "trash" ? "永久删除" : "删除"}
-              </Button>
-            </div>
-          </div>
-        )}
-
         {isLoading || (isRefreshing && memos.length === 0) ? (
           <div className="px-2 py-4 text-sm text-slate-500">正在拉取最新笔记</div>
         ) : isError && memos.length === 0 ? (
@@ -1343,99 +1366,6 @@ export const MemoListPane = ({
                   </DropdownMenuItem>
                 </>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
-
-      {/* Controlled Right Click context menu for bulk selection on Desktop using absolute placement */}
-      {selectionContextMenu && selectedMemoIds.size > 0 && (
-        <div style={{ position: "fixed", left: selectionContextMenu.x, top: selectionContextMenu.y, zIndex: 100 }}>
-          <DropdownMenu open={true} onOpenChange={(open) => { if (!open) setSelectionContextMenu(null); }}>
-            <DropdownMenuTrigger asChild>
-              <span className="sr-only" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 bg-white border border-slate-200 rounded-md py-1 shadow-md">
-              <div className="px-3 py-1.5 text-xs font-semibold text-slate-400">{selectionCountLabel}</div>
-              {view !== "trash" ? (
-                <>
-                  <DropdownMenuItem
-                    className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
-                    disabled={moveNotebookOptions.length === 0 || isMoving}
-                    onClick={() => setContextMoveOpen((value) => !value)}
-                  >
-                    <Folder className="h-4 w-4" />
-                    <span className="min-w-0 flex-1 truncate">移动到笔记本</span>
-                    <ChevronRight className={cn("h-4 w-4 transition-transform duration-200", contextMoveOpen && "rotate-90")} />
-                  </DropdownMenuItem>
-                  {contextMoveOpen && (
-                    <div className="max-h-52 overflow-y-auto border-y border-slate-100 bg-slate-50/60 py-1">
-                      {moveNotebookOptions.map((option: any) => (
-                        <button
-                          key={option.id}
-                          className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 transition hover:bg-white"
-                          style={{ paddingLeft: `${12 + option.depth * 14}px` }}
-                          type="button"
-                          disabled={isMoving}
-                          onClick={() => {
-                            setContextMoveOpen(false);
-                            setSelectionContextMenu(null);
-                            onMoveSelectedMemos(option.id);
-                          }}
-                        >
-                          <NotebookIcon className="h-4 w-4 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate">{option.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <DropdownMenuItem
-                    className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
-                    disabled={selectedMemoIds.size === 0 || isPinning}
-                    onClick={() => {
-                      setSelectionContextMenu(null);
-                      onPinSelectedMemos(selectedPinTarget);
-                    }}
-                  >
-                    <Star className={cn("h-4 w-4", !selectedPinTarget && "fill-current text-slate-700")} />
-                    {selectionPinLabel}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
-                    disabled={selectedMemoIds.size < 2 || isMerging}
-                    onClick={() => {
-                      setSelectionContextMenu(null);
-                      onMerge();
-                    }}
-                  >
-                    <Merge className="h-4 w-4" />
-                    合并笔记
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-1 h-px bg-slate-100" />
-                </>
-              ) : null}
-              <DropdownMenuItem
-                className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-rose-700 hover:bg-rose-50 cursor-pointer outline-none"
-                disabled={selectedMemoIds.size === 0 || isDeleting}
-                onClick={() => {
-                  setSelectionContextMenu(null);
-                  onDeleteSelectedMemos();
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-                {view === "trash" ? "永久删除" : "删除"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1 h-px bg-slate-100" />
-              <DropdownMenuItem
-                className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-slate-700 hover:bg-slate-50 cursor-pointer outline-none"
-                onClick={() => {
-                  setSelectionContextMenu(null);
-                  onClearSelection();
-                }}
-              >
-                <X className="h-4 w-4" />
-                取消选择
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -23,7 +23,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { MemoListPane } from "./MemoListPane";
+import { MemoListPane, MemoSelectionActionBar } from "./MemoListPane";
 import { AppConfirmDialog, MemoDeleteConfirmDialog, NotebookNameDialog } from "./dialogs/ConfirmDialogs";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -467,6 +467,7 @@ export const WorkspaceApp = ({
   const [createdMemoEditId, setCreatedMemoEditId] = useState<string | null>(null);
   const [selectedMemoIds, setSelectedMemoIds] = useState<Set<string>>(new Set());
   const [memoSelectionMode, setMemoSelectionMode] = useState(false);
+  const [selectionMoveTargetNotebookId, setSelectionMoveTargetNotebookId] = useState("");
   const [memoDeleteConfirmation, setMemoDeleteConfirmation] = useState<MemoDeleteConfirmation | null>(null);
   const [emptyTrashConfirmationOpen, setEmptyTrashConfirmationOpen] = useState(false);
   const [notebookNameDialog, setNotebookNameDialog] = useState<NotebookNameDialogState | null>(null);
@@ -1095,6 +1096,22 @@ export const WorkspaceApp = ({
 
   const selectedNotebook = notebooks.find((notebook) => notebook.id === selectedNotebookId) ?? null;
   const selectedMemo = memoQuery.data?.memo ?? null;
+  const selectionMoveNotebookOptions = useMemo(() => getNotebookMoveOptions(notebooks), [notebooks]);
+  const selectedMemosInCurrentList = useMemo(
+    () => memos.filter((memo) => selectedMemoIds.has(memo.id)),
+    [memos, selectedMemoIds]
+  );
+
+  useEffect(() => {
+    if (selectedNotebook?.id) {
+      setSelectionMoveTargetNotebookId(selectedNotebook.id);
+      return;
+    }
+
+    if (!selectionMoveTargetNotebookId && selectionMoveNotebookOptions[0]?.id) {
+      setSelectionMoveTargetNotebookId(selectionMoveNotebookOptions[0].id);
+    }
+  }, [selectedNotebook?.id, selectionMoveNotebookOptions, selectionMoveTargetNotebookId]);
 
   const handleCreateNotebook = (parentId?: string | null) => {
     setNotebookNameDialog({ mode: "create", parentId: parentId ?? null });
@@ -1296,6 +1313,69 @@ export const WorkspaceApp = ({
       permanent: true,
     });
   };
+
+  const allSelectedMemosPinned =
+    selectedMemosInCurrentList.length > 0 && selectedMemosInCurrentList.every((memo) => memo.isPinned);
+  const selectedPinTarget = !allSelectedMemosPinned;
+  const selectionPinLabel = allSelectedMemosPinned ? "取消置顶" : "置顶";
+  const selectionPinTitle =
+    selectedMemoIds.size === 0
+      ? "请选择笔记"
+      : memoView === "trash"
+        ? "回收站内不可置顶"
+        : pinMemosMutation.isPending
+          ? "正在更新置顶"
+          : selectionPinLabel;
+  const selectionMoveTitle =
+    selectedMemoIds.size === 0
+      ? "请选择笔记"
+      : memoView === "trash"
+        ? "回收站内不可移动"
+        : notebooks.length === 0
+          ? "没有可移动的笔记本"
+          : moveMemosMutation.isPending
+            ? "正在移动"
+            : "移动";
+  const selectionMergeTitle =
+    selectedMemoIds.size < 2
+      ? "至少选择 2 条笔记"
+      : memoView === "trash"
+        ? "回收站内不可合并"
+        : mergeMutation.isPending
+          ? "正在合并"
+          : "合并笔记";
+  const selectionDeleteTitle =
+    selectedMemoIds.size === 0
+      ? "请选择笔记"
+      : deleteMemosMutation.isPending || deleteMemoMutation.isPending
+        ? "正在删除"
+        : memoView === "trash"
+          ? "永久删除"
+          : "删除";
+  const memoSelectionActionBar = memoSelectionModeActive ? (
+    <MemoSelectionActionBar
+      deleteTitle={selectionDeleteTitle}
+      isDeleting={deleteMemosMutation.isPending || deleteMemoMutation.isPending}
+      isMerging={mergeMutation.isPending}
+      isMoving={moveMemosMutation.isPending}
+      isPinning={pinMemosMutation.isPending}
+      isTrashView={memoView === "trash"}
+      mergeTitle={selectionMergeTitle}
+      moveNotebookOptions={selectionMoveNotebookOptions}
+      moveTargetNotebookId={selectionMoveTargetNotebookId}
+      moveTitle={selectionMoveTitle}
+      onClearSelection={clearMemoSelection}
+      onDelete={handleDeleteSelectedMemos}
+      onMerge={handleMerge}
+      onMove={() => handleMoveSelectedMemos(selectionMoveTargetNotebookId)}
+      onMoveTargetChange={setSelectionMoveTargetNotebookId}
+      onPin={() => handlePinSelectedMemos(selectedPinTarget)}
+      pinLabel={selectionPinLabel}
+      pinTarget={selectedPinTarget}
+      pinTitle={selectionPinTitle}
+      selectedCount={selectedMemoIds.size}
+    />
+  ) : null;
 
   const handleDeleteMemoFromList = (memoId: string) => {
     if (memoView !== "trash") {
@@ -1985,6 +2065,7 @@ export const WorkspaceApp = ({
                     searchFocusToken={noteSearchFocusToken}
                     replaceFocusToken={noteReplaceFocusToken}
                     imageCompressionEnabled={imageCompressionEnabled}
+                    selectionActionBar={memoSelectionActionBar}
                     hasNextMemo={Boolean(nextMemoId)}
                     hasPreviousMemo={Boolean(previousMemoId)}
                     onBackToList={() => setActivePane("memos")}

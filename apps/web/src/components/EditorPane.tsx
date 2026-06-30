@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -242,6 +242,7 @@ export const EditorPane = ({
   onMobileDefaultEditConsumed,
   searchFocusToken,
   replaceFocusToken,
+  selectionActionBar,
 }: {
   memo: MemoDetail | null;
   mobileDefaultEditMemoId: string | null;
@@ -261,8 +262,10 @@ export const EditorPane = ({
   onMobileDefaultEditConsumed: () => void;
   searchFocusToken: number;
   replaceFocusToken: number;
+  selectionActionBar?: ReactNode;
 }) => {
   const queryClient = useQueryClient();
+  const isSelectionMode = Boolean(selectionActionBar);
   const [title, setTitle] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "queued" | "error" | "conflict">("idle");
@@ -858,16 +861,32 @@ export const EditorPane = ({
     return () => window.clearTimeout(timer);
   }, [dirtyVersion, editor, hasUnsavedChanges, memo, saveMutation, saveState]);
 
+  if (isSelectionMode) {
+    return (
+      <div className="flex h-full min-w-0 flex-col bg-white">
+        {selectionActionBar}
+      </div>
+    );
+  }
+
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center text-sm text-slate-500">加载中</div>;
+    return (
+      <div className="flex h-full min-w-0 flex-col bg-white">
+        {selectionActionBar}
+        <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-slate-500">加载中</div>
+      </div>
+    );
   }
 
   if (!memo) {
     return (
-      <div className="flex h-full items-center justify-center bg-white px-8 text-center">
-        <div>
-          <Sparkles className="mx-auto mb-3 h-8 w-8 text-slate-300 animate-pulse" />
-          <div className="text-sm font-medium text-slate-400">选择或新建一条笔记</div>
+      <div className="flex h-full min-w-0 flex-col bg-white">
+        {selectionActionBar}
+        <div className="flex min-h-0 flex-1 items-center justify-center px-8 text-center">
+          <div>
+            <Sparkles className="mx-auto mb-3 h-8 w-8 text-slate-300 animate-pulse" />
+            <div className="text-sm font-medium text-slate-400">选择或新建一条笔记</div>
+          </div>
         </div>
       </div>
     );
@@ -1005,6 +1024,7 @@ export const EditorPane = ({
 
   return (
     <div className="relative flex h-full min-w-0 flex-col bg-white">
+      {selectionActionBar}
       <header className="shrink-0 border-b border-slate-200 bg-white">
         <div className="flex min-h-12 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 sm:px-5">
           <div className="flex min-w-0 items-center gap-2 text-sm">
