@@ -1,92 +1,131 @@
 ---
-// @ts-ignore
 import { Icon } from "astro-icon/components";
+import { BorderBeam } from "@/components/magicui/border-beam";
+import { MagicCard } from "@/components/magicui/magic-card";
 
-const features = [
-  {
-    title: "经典三栏与嵌套笔记本",
-    description:
-      "保留笔记本树、笔记列表、主编辑区的工作流。支持无限级嵌套笔记本、拖拽排序与调整层级、多选移动和多选合并笔记。",
-    icon: "bx:bx-layout",
-  },
-  {
-    title: "富文本与开放内容格式",
-    description:
-      "编辑器基于 TipTap / ProseMirror。EdgeEver 同时保存结构化 content_json、给 API 和 Agent 使用的 Markdown，以及用于搜索和索引的纯文本。",
-    icon: "bx:bx-edit-alt",
-  },
+const minorFeatures = [
   {
     title: "Web 端图片压缩",
-    description:
-      "网页端上传图片前可在浏览器本地压缩为 WebP，并将最长边限制在 2560px 内。REST API 和 MCP 会按客户端提供的文件内容直接入库。",
+    description: "上传前本地压缩为 WebP，限制最长边，极速且省流。",
     icon: "bx:bx-navigation",
   },
   {
-    title: "PWA 与离线草稿队列",
-    description:
-      "可安装到桌面或手机主屏幕。Web 端使用 Workbox 与 Dexie 支撑 PWA、离线编辑草稿和本地同步队列，适合手机随手记录。",
+    title: "PWA 与离线草稿",
+    description: "可安装到桌面或手机。支持离线编辑与本地同步队列。",
     icon: "bx:bx-mobile",
   },
   {
-    title: "AI Agent 友好",
-    description:
-      "后端提供 REST API、OpenAPI schema 和 Remote MCP endpoint。AI Agent 可以在授权后读取、创建、整理笔记和标签。",
-    icon: "bx:bxs-bot",
-  },
-  {
-    title: "Cloudflare 自托管部署",
-    description:
-      "基于 Cloudflare Workers、D1 和 R2。按核心仓库 README 的估算，个人短笔记可达 10 万条量级，200KB 图片约可存放 5 万张。",
-    icon: "bx:bx-dollar",
-  },
-  {
-    title: "数据开放且可迁移",
-    description:
-      "笔记内容存放在基于标准 SQLite 的 D1 中，可通过 REST API、MCP 和 CLI 按需读取、迁移或导出，减少对单一商业笔记产品的依赖。",
+    title: "数据开放可迁移",
+    description: "基于标准 SQLite (D1)，API/CLI 按需读取、迁移或导出。",
     icon: "bx:bxs-lock-alt",
   },
   {
-    title: "单用户登录与 Token",
-    description:
-      "面向个人自托管场景，支持单用户登录，密码使用 PBKDF2-SHA256 hash；可在个人中心创建 API / MCP Token 授权外部工具。",
+    title: "单用户登录授权",
+    description: "PBKDF2-SHA256 密码哈希，支持创建 API Token 授权外部工具。",
     icon: "bx:bx-key",
   },
   {
     title: "印象笔记迁移",
-    description:
-      "提供 Evernote ENEX 导入脚本和 MCP 迁移流程。迁移指引覆盖 evernote-backup、ENEX 导出、本地依赖安装和按笔记本筛选导入。",
+    description: "提供完整 ENEX 导入脚本与按笔记本筛选迁移工作流。",
     icon: "bx:bx-transfer",
   },
 ];
 ---
 
-<div class="mt-16 md:mt-24">
-  <div class="max-w-3xl">
-    <div class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-brand-text bg-brand-soft border border-brand-border/40 rounded-full mb-4">
-      特性矩阵
+<div class="mt-20 md:mt-32 relative">
+  <!-- Decorative background elements -->
+  <div class="absolute top-40 -left-20 w-72 h-72 bg-brand-border/10 rounded-full blur-3xl -z-10"></div>
+  
+  <div class="max-w-3xl mb-16 text-center mx-auto">
+    <div class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-brand-text bg-brand-soft/80 backdrop-blur border border-brand-border/40 rounded-full mb-5 shadow-sm">
+      <Icon name="bx:bx-star" class="w-4 h-4 text-brand" />
+      核心特性
     </div>
     <h2 class="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900" id="features">
-      当前 EdgeEver 已实现的能力
+      重新定义个人笔记体验
     </h2>
-    <p class="text-lg mt-4 text-slate-600 leading-relaxed">
-      以下内容来自同级核心仓库的 README、部署文档、迁移指南和实际代码结构，官网展示会随核心项目同步更新。
+    <p class="text-lg mt-5 text-slate-600 leading-relaxed">
+      结合现代 Web 技术、Serverless 架构与 AI 代理能力，带来高效、开放、安全的内容工作区。
     </p>
   </div>
-</div>
 
-<div class="grid sm:grid-cols-2 md:grid-cols-3 mt-16 gap-8">
-  {
-    features.map((item) => (
-      <div class="group relative flex flex-col p-6 bg-white border border-slate-100 rounded-2xl glow-card hover-lift">
-        <div class="absolute -inset-px rounded-2xl border border-transparent group-hover:border-brand/10 transition-colors pointer-events-none"></div>
-        <div class="bg-brand-soft border border-brand-border/20 rounded-xl p-2.5 w-11 h-11 shrink-0 flex items-center justify-center mb-5 transition-colors group-hover:bg-brand group-hover:text-white">
-          <Icon class="text-brand-text w-6 h-6 transition-colors group-hover:text-white" name={item.icon} />
-        </div>
-        <div>
-          <h3 class="font-semibold text-lg text-slate-800 transition-colors group-hover:text-brand-text">{item.title}</h3>
-          <p class="text-slate-500 mt-2.5 leading-relaxed text-sm">{item.description}</p>
-        </div>
+  <!-- Bento Box Layout -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[minmax(220px,auto)]">
+    
+    <!-- Bento Item 1: Cloudflare -->
+    <div class="md:col-span-2 group relative overflow-hidden flex flex-col p-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl border border-slate-700 hover-lift shadow-2xl">
+      <BorderBeam size={300} duration={12} delay={9} className="z-20" client:visible />
+      <div class="absolute top-0 right-0 w-64 h-64 bg-brand/20 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3 group-hover:bg-brand/30 transition-colors duration-500"></div>
+      <Icon class="text-brand-border w-10 h-10 mb-6 relative z-10" name="bx:bx-dollar" />
+      <div class="relative z-10 mt-auto">
+        <h3 class="font-bold text-2xl text-white">Cloudflare 自托管部署</h3>
+        <p class="text-slate-300 mt-3 leading-relaxed text-base max-w-lg">
+          完全构建于 Cloudflare Workers、D1 和 R2 之上。个人短笔记可达 10 万条量级，200KB 图片约可存放 5 万张，以极低的成本拥有企业级可用性。
+        </p>
       </div>
-    ))
-  }
+    </div>
+
+    <!-- Bento Item 2: AI Agent -->
+    <div class="md:col-span-1 group relative overflow-hidden flex flex-col bg-brand-soft rounded-3xl border border-brand-border/30 hover-lift glow-card">
+      <MagicCard client:visible className="p-8 flex flex-col items-start justify-start w-full h-full" gradientColor="#70c9b7" gradientOpacity={0.15}>
+        <div class="bg-white/60 p-3 rounded-2xl w-fit mb-6 shadow-sm border border-white">
+          <Icon class="text-brand-text w-8 h-8" name="bx:bxs-bot" />
+        </div>
+        <div class="mt-auto">
+          <h3 class="font-bold text-xl text-slate-800">AI Agent 原生集成</h3>
+          <p class="text-slate-600 mt-3 leading-relaxed text-sm">
+            提供 REST API、OpenAPI schema 和 Remote MCP Endpoint。你的 AI 助手可以无缝读取、创建和整理所有笔记。
+          </p>
+        </div>
+      </MagicCard>
+    </div>
+
+    <!-- Bento Item 3: Classic UI -->
+    <div class="md:col-span-1 group relative overflow-hidden flex flex-col bg-white rounded-3xl border border-slate-200 hover-lift shadow-sm">
+      <MagicCard client:visible className="p-8 flex flex-col items-start justify-start w-full h-full" gradientColor="#e8f6f1" gradientOpacity={0.4}>
+        <div class="bg-slate-50 p-3 rounded-2xl w-fit mb-6 border border-slate-100 group-hover:bg-brand-soft transition-colors z-10">
+          <Icon class="text-slate-600 group-hover:text-brand-text w-8 h-8 transition-colors" name="bx:bx-layout" />
+        </div>
+        <div class="mt-auto z-10">
+          <h3 class="font-bold text-xl text-slate-800">经典三栏与嵌套</h3>
+          <p class="text-slate-500 mt-3 leading-relaxed text-sm">
+            无限级嵌套笔记本、拖拽排序、多选合并。保留你最熟悉的高效工作流。
+          </p>
+        </div>
+      </MagicCard>
+    </div>
+
+    <!-- Bento Item 4: Rich Text Editor -->
+    <div class="md:col-span-2 group relative overflow-hidden flex flex-col bg-white rounded-3xl border border-slate-200 hover-lift shadow-sm">
+      <MagicCard client:visible className="p-8 flex flex-col items-start justify-start w-full h-full" gradientColor="#e8f6f1" gradientOpacity={0.4}>
+        <div class="absolute bottom-0 right-0 w-1/2 h-full bg-gradient-to-l from-slate-50 to-transparent pointer-events-none"></div>
+        <div class="bg-slate-50 p-3 rounded-2xl w-fit mb-6 border border-slate-100 group-hover:bg-brand-soft transition-colors relative z-10">
+          <Icon class="text-slate-600 group-hover:text-brand-text w-8 h-8 transition-colors" name="bx:bx-edit-alt" />
+        </div>
+        <div class="mt-auto relative z-10">
+          <h3 class="font-bold text-2xl text-slate-800">富文本与开放内容格式</h3>
+          <p class="text-slate-500 mt-3 leading-relaxed text-base max-w-lg">
+            基于 TipTap 的现代编辑器。数据同时保存为结构化 JSON、供 Agent 使用的 Markdown，以及供搜索的纯文本，绝不绑定数据。
+          </p>
+        </div>
+      </MagicCard>
+    </div>
+  </div>
+
+  <!-- Minor Features Grid -->
+  <div class="mt-12 pt-12 border-t border-slate-100/60">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      {
+        minorFeatures.map((item) => (
+          <div class="group flex flex-col items-center text-center p-4 rounded-2xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 border border-transparent hover:border-slate-100 transition-all duration-300">
+            <div class="bg-slate-50 rounded-xl p-3 mb-4 group-hover:bg-brand-soft group-hover:scale-110 transition-all duration-300">
+              <Icon class="text-slate-400 group-hover:text-brand w-6 h-6 transition-colors" name={item.icon} />
+            </div>
+            <h4 class="font-semibold text-slate-800 text-sm mb-2">{item.title}</h4>
+            <p class="text-slate-500 text-xs leading-relaxed">{item.description}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
 </div>
