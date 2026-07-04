@@ -433,6 +433,9 @@ export const EditorPane = ({
 
   const memoRef = useRef<MemoDetail | null>(memo);
   const editorRef = useRef<Editor | null>(null);
+  const mobileTextAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const mobileDraftTimerRef = useRef<number | null>(null);
+  const mobileSaveTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const noteSearchInputRef = useRef<HTMLInputElement | null>(null);
   const noteReplaceInputRef = useRef<HTMLInputElement | null>(null);
@@ -468,8 +471,18 @@ export const EditorPane = ({
             return;
           }
 
+          if (isMobileViewport && !readOnly) {
+            const textarea = mobileTextAreaRef.current;
+            if (textarea) {
+              textarea.focus({ preventScroll: true });
+              textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+              onMobileDefaultEditConsumed();
+              return;
+            }
+          }
+
           const currentEditor = editorRef.current;
-          if (isEditorReady(currentEditor)) {
+          if (!isMobileViewport && isEditorReady(currentEditor)) {
             currentEditor.commands.focus("end");
             onMobileDefaultEditConsumed();
             return;
@@ -491,7 +504,7 @@ export const EditorPane = ({
         window.cancelAnimationFrame(frame);
       };
     }
-  }, [memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed]);
+  }, [isMobileViewport, memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed, readOnly]);
 
   const insertImageFiles = useCallback((files: File[]) => {
     const currentMemo = memoRef.current;
@@ -778,8 +791,13 @@ export const EditorPane = ({
     };
   }, [editor]);
 
+  const getMobilePlainTextValue = useCallback(
+    () => mobileTextAreaRef.current?.value ?? mobilePlainText,
+    [mobilePlainText]
+  );
+
   const persistCurrentDraft = useCallback(
-    (nextTitle = title, nextTagsText = tagsText, nextMobilePlainText = mobilePlainText) => {
+    (nextTitle = title, nextTagsText = tagsText, nextMobilePlainText = getMobilePlainTextValue()) => {
       const currentMemo = memoRef.current;
       const currentEditor = editorRef.current;
 
@@ -795,7 +813,7 @@ export const EditorPane = ({
         updatedAt: new Date().toISOString(),
       });
     },
-    [mobilePlainText, tagsText, title, useMobilePlainTextEditor]
+    [getMobilePlainTextValue, tagsText, title, useMobilePlainTextEditor]
   );
 
   const markDirty = useCallback(() => {
@@ -812,7 +830,7 @@ export const EditorPane = ({
 
   const getCurrentContentJson = useCallback((): TiptapDoc | null => {
     if (useMobilePlainTextEditor) {
-      return markdownToDoc(mobilePlainText);
+      return markdownToDoc(getMobilePlainTextValue());
     }
 
     const currentEditor = editorRef.current;
@@ -821,7 +839,7 @@ export const EditorPane = ({
     }
 
     return currentEditor.getJSON() as TiptapDoc;
-  }, [mobilePlainText, useMobilePlainTextEditor]);
+  }, [getMobilePlainTextValue, useMobilePlainTextEditor]);
 
   const currentSnapshot = useCallback(() => {
     const contentJson = getCurrentContentJson();
@@ -848,6 +866,9 @@ export const EditorPane = ({
       setTitle("");
       setTagsText("");
       setMobilePlainText("");
+      if (mobileTextAreaRef.current) {
+        mobileTextAreaRef.current.value = "";
+      }
       setSaveState("idle");
       if (isEditorReady(currentEditor)) {
         currentEditor.commands.clearContent();
@@ -880,6 +901,7 @@ export const EditorPane = ({
       const nextTitle = useDraft && draft ? draft.title : memo.title ?? "";
       const nextTagsText = useDraft && draft ? draft.tagsText : memo.tags.join(", ");
       const nextContent = useDraft && draft ? draft.contentJson : memo.contentJson;
+      const nextMarkdown = docToMarkdown(nextContent);
       const nextHasUnsavedChanges = Boolean(useDraft && !queuedUpdate);
 
       hydratingRef.current = true;
@@ -889,7 +911,10 @@ export const EditorPane = ({
       setSaveState(queuedUpdate ? syncStatusToSaveState(queuedUpdate.status) : "idle");
       setTitle(nextTitle);
       setTagsText(nextTagsText);
-      setMobilePlainText(docToMarkdown(nextContent));
+      setMobilePlainText(nextMarkdown);
+      if (mobileTextAreaRef.current) {
+        mobileTextAreaRef.current.value = nextMarkdown;
+      }
 
       if (isEditorReady(currentEditor)) {
         currentEditor.commands.setContent(nextContent);
@@ -911,12 +936,20 @@ export const EditorPane = ({
     }
 
     if (isEditorReady(editor)) {
-      setMobilePlainText(docToMarkdown(editor.getJSON() as TiptapDoc));
+      const nextMarkdown = docToMarkdown(editor.getJSON() as TiptapDoc);
+      setMobilePlainText(nextMarkdown);
+      if (mobileTextAreaRef.current) {
+        mobileTextAreaRef.current.value = nextMarkdown;
+      }
       return;
     }
 
     if (memo) {
-      setMobilePlainText(docToMarkdown(memo.contentJson));
+      const nextMarkdown = docToMarkdown(memo.contentJson);
+      setMobilePlainText(nextMarkdown);
+      if (mobileTextAreaRef.current) {
+        mobileTextAreaRef.current.value = nextMarkdown;
+      }
     }
   }, [editor, memo?.id, useMobilePlainTextEditor]);
 
@@ -946,25 +979,13 @@ export const EditorPane = ({
   }, [editor, markDirty, memo, persistCurrentDraft]);
 
   useEffect(() => {
-    if (!useMobilePlainTextEditor || !memo || !hasUnsavedChanges) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      persistCurrentDraft(title, tagsText, mobilePlainText);
-    }, MOBILE_DRAFT_PERSIST_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [hasUnsavedChanges, memo, mobilePlainText, persistCurrentDraft, tagsText, title, useMobilePlainTextEditor]);
-
-  useEffect(() => {
     if (!useMobilePlainTextEditor) {
       return;
     }
 
     const persistBeforeSuspend = () => {
       if (hasUnsavedChangesRef.current) {
-        persistCurrentDraft(title, tagsText, mobilePlainText);
+        persistCurrentDraft(title, tagsText, getMobilePlainTextValue());
       }
     };
     const persistWhenHidden = () => {
@@ -980,7 +1001,7 @@ export const EditorPane = ({
       window.removeEventListener("pagehide", persistBeforeSuspend);
       document.removeEventListener("visibilitychange", persistWhenHidden);
     };
-  }, [mobilePlainText, persistCurrentDraft, tagsText, title, useMobilePlainTextEditor]);
+  }, [getMobilePlainTextValue, persistCurrentDraft, tagsText, title, useMobilePlainTextEditor]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1083,10 +1104,72 @@ export const EditorPane = ({
     },
   });
 
+  const clearMobileEditorTimers = useCallback(() => {
+    if (mobileDraftTimerRef.current !== null) {
+      window.clearTimeout(mobileDraftTimerRef.current);
+      mobileDraftTimerRef.current = null;
+    }
+
+    if (mobileSaveTimerRef.current !== null) {
+      window.clearTimeout(mobileSaveTimerRef.current);
+      mobileSaveTimerRef.current = null;
+    }
+  }, []);
+
+  const markMobilePlainTextDirty = useCallback(() => {
+    const currentMemo = memoRef.current;
+    if (hydratingRef.current || currentMemo?.isDeleted) {
+      return;
+    }
+
+    if (!hasUnsavedChangesRef.current) {
+      hasUnsavedChangesRef.current = true;
+      setHasUnsavedChanges(true);
+      setSaveState((current) => (current === "conflict" ? current : "idle"));
+    } else if (saveState === "saved") {
+      setSaveState("idle");
+    }
+
+    if (mobileDraftTimerRef.current !== null) {
+      window.clearTimeout(mobileDraftTimerRef.current);
+    }
+    mobileDraftTimerRef.current = window.setTimeout(() => {
+      mobileDraftTimerRef.current = null;
+      persistCurrentDraft(title, tagsText, getMobilePlainTextValue());
+    }, MOBILE_DRAFT_PERSIST_DELAY_MS);
+
+    if (mobileSaveTimerRef.current !== null) {
+      window.clearTimeout(mobileSaveTimerRef.current);
+    }
+    mobileSaveTimerRef.current = window.setTimeout(() => {
+      mobileSaveTimerRef.current = null;
+      if (
+        !memoRef.current ||
+        memoRef.current.isDeleted ||
+        !hasUnsavedChangesRef.current ||
+        saveMutation.isPending ||
+        saveState === "conflict"
+      ) {
+        return;
+      }
+
+      saveMutation.mutate();
+    }, EDITOR_AUTO_SAVE_DELAY_MS);
+  }, [getMobilePlainTextValue, persistCurrentDraft, saveMutation, saveState, tagsText, title]);
+
+  useEffect(() => () => clearMobileEditorTimers(), [clearMobileEditorTimers]);
+
+  useEffect(() => {
+    if (!useMobilePlainTextEditor) {
+      clearMobileEditorTimers();
+    }
+  }, [clearMobileEditorTimers, useMobilePlainTextEditor]);
+
   useEffect(() => {
     if (
       !memo ||
       memo.isDeleted ||
+      useMobilePlainTextEditor ||
       !editor ||
       !hasUnsavedChanges ||
       saveMutation.isPending ||
@@ -1100,7 +1183,7 @@ export const EditorPane = ({
     }, EDITOR_AUTO_SAVE_DELAY_MS);
 
     return () => window.clearTimeout(timer);
-  }, [dirtyVersion, editor, hasUnsavedChanges, memo, saveMutation, saveState]);
+  }, [dirtyVersion, editor, hasUnsavedChanges, memo, saveMutation, saveState, useMobilePlainTextEditor]);
 
   if (isSelectionMode) {
     return (
@@ -1483,7 +1566,7 @@ export const EditorPane = ({
             readOnly={effectiveReadOnly}
             onChange={(event) => {
               setTitle(event.target.value);
-              persistCurrentDraft(event.target.value, tagsText, mobilePlainText);
+              persistCurrentDraft(event.target.value, tagsText, getMobilePlainTextValue());
               markDirty();
             }}
             className="block w-full rounded-md border-0 bg-transparent text-2xl font-bold leading-tight text-slate-950 outline-none transition placeholder:text-slate-300 focus-visible:bg-slate-50 focus-visible:shadow-[inset_3px_0_0_var(--brand-green)] sm:text-3xl"
@@ -1526,7 +1609,7 @@ export const EditorPane = ({
                 readOnly={effectiveReadOnly}
                 onChange={(event) => {
                   setTagsText(event.target.value);
-                  persistCurrentDraft(title, event.target.value, mobilePlainText);
+                  persistCurrentDraft(title, event.target.value, getMobilePlainTextValue());
                   markDirty();
                 }}
                 className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
@@ -1630,17 +1713,11 @@ export const EditorPane = ({
       <div className="edgeever-editor min-h-0 flex-1 overflow-y-auto bg-white">
         {useMobilePlainTextEditor ? (
           <textarea
-            value={mobilePlainText}
-            onChange={(event) => {
-              const nextText = event.target.value;
-              setMobilePlainText(nextText);
-              markDirty();
-            }}
+            ref={mobileTextAreaRef}
+            defaultValue={mobilePlainText}
+            onInput={markMobilePlainTextDirty}
             className="block min-h-full w-full resize-none border-0 bg-white px-4 py-3 text-base leading-7 text-slate-900 outline-none placeholder:text-slate-400 sm:px-7"
             placeholder="开始记录..."
-            autoCapitalize="sentences"
-            autoCorrect="on"
-            spellCheck
           />
         ) : (
           <EditorContent editor={editor} />
@@ -1654,7 +1731,10 @@ export const EditorPane = ({
           variant="solid"
           title="编辑笔记"
           aria-label="编辑笔记"
-          onClick={() => setIsMobileEditing(true)}
+          onClick={() => {
+            setIsMobileEditing(true);
+            window.requestAnimationFrame(() => mobileTextAreaRef.current?.focus({ preventScroll: true }));
+          }}
         >
           <Pencil className="h-5 w-5" />
         </Button>
@@ -1664,7 +1744,7 @@ export const EditorPane = ({
         <RevisionHistoryDialog
           currentMarkdown={
             useMobilePlainTextEditor
-              ? mobilePlainText
+              ? getMobilePlainTextValue()
               : isEditorReady(editor)
                 ? docToMarkdown(editor.getJSON() as TiptapDoc)
                 : memo.contentMarkdown
