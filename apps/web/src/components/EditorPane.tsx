@@ -508,6 +508,7 @@ export const EditorPane = ({
   const [mobilePlainText, setMobilePlainText] = useState("");
   const [mobileToolbarOpen, setMobileToolbarOpen] = useState(false);
   const [mobileImeDebugOpen, setMobileImeDebugOpen] = useState(false);
+  const [mobileImeBridgeReady, setMobileImeBridgeReady] = useState(false);
   const [mobileImeDebugActiveElement, setMobileImeDebugActiveElement] = useState(getActiveElementLabel);
   const [mobileImeDebugEvents, setMobileImeDebugEvents] = useState<MobileImeDebugEntry[]>([]);
   const notebookOptions = useMemo(() => getNotebookMoveOptions(notebooks), [notebooks]);
@@ -546,6 +547,15 @@ export const EditorPane = ({
     focusMobilePlainTextElement(mobileTextAreaRef.current);
   }, []);
 
+  const bindMobileImeBridgeInput = useCallback((element: HTMLInputElement | null) => {
+    if (mobileImeBridgeInputRef.current === element) {
+      return;
+    }
+
+    mobileImeBridgeInputRef.current = element;
+    setMobileImeBridgeReady(Boolean(element));
+  }, []);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia(MOBILE_EDITOR_QUERY);
     const updateMobileViewport = () => setIsMobileViewport(mediaQuery.matches);
@@ -574,7 +584,7 @@ export const EditorPane = ({
           }
 
           if (isMobileViewport && !readOnly) {
-            if (mobileImeBridgeInputRef.current || mobileTextAreaRef.current) {
+            if (mobileImeBridgeInputRef.current) {
               focusMobileInputTarget();
               return;
             }
@@ -601,6 +611,15 @@ export const EditorPane = ({
       };
     }
   }, [focusMobileInputTarget, isMobileViewport, memo?.id, mobileDefaultEditMemoId, onMobileDefaultEditConsumed, readOnly]);
+
+  useEffect(() => {
+    if (!useMobilePlainTextEditor || !mobileImeBridgeReady) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => focusMobileInputTarget());
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusMobileInputTarget, mobileImeBridgeReady, useMobilePlainTextEditor]);
 
   const insertImageFiles = useCallback((files: File[]) => {
     const currentMemo = memoRef.current;
@@ -924,7 +943,7 @@ export const EditorPane = ({
   }, [recordMobileImeDebugEvent]);
 
   useEffect(() => {
-    if (!useMobilePlainTextEditor) {
+    if (!useMobilePlainTextEditor || !mobileImeBridgeReady) {
       return;
     }
 
@@ -1412,7 +1431,7 @@ export const EditorPane = ({
       bridgeInput.removeEventListener("compositionend", handleBridgeCompositionEnd);
       bridgeInput.removeEventListener("keydown", handleBridgeKeyDown);
     };
-  }, [useMobilePlainTextEditor]);
+  }, [mobileImeBridgeReady, useMobilePlainTextEditor]);
 
   useEffect(() => {
     if (!useMobilePlainTextEditor) {
@@ -2040,7 +2059,7 @@ export const EditorPane = ({
         {useMobilePlainTextEditor ? (
           <div className="flex min-h-full w-full flex-col bg-white">
             <input
-              ref={mobileImeBridgeInputRef}
+              ref={bindMobileImeBridgeInput}
               type="text"
               autoCapitalize="sentences"
               autoComplete="off"
@@ -2062,6 +2081,7 @@ export const EditorPane = ({
               data-edgeever-mobile-editor="plain-content-display"
               className="block min-h-[12rem] flex-1 whitespace-pre-wrap break-words bg-white px-4 pb-6 pt-1 text-base leading-7 text-slate-900 outline-none sm:px-7"
               style={{ WebkitUserSelect: "text", userSelect: "text", caretColor: "auto" }}
+              onPointerDown={() => window.requestAnimationFrame(() => focusMobileInputTarget())}
               onClick={focusMobileInputTarget}
             >
               {mobilePlainText}
@@ -2097,7 +2117,6 @@ export const EditorPane = ({
               type="button"
               onClick={() => {
                 void navigator.clipboard?.writeText(mobileImeDebugLogText);
-                recordMobileImeDebugEvent("debug-copy-log");
               }}
             >
               复制
