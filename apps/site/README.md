@@ -49,7 +49,7 @@ bun run preview:site
 
 ## 目录结构
 
-- `src/pages/`：官网主要页面（首页、关于、托管费用、联系我们、开发日志）。
+- `src/pages/`：官网主要页面（首页、联系我们、开发日志）。
 - `src/components/`：可复用的 UI 与区块组件。
 - `src/content/blog/`：存储与项目相关的技术指南和更新日志（Markdown 格式）。
 - `public/`：存放静态图片、图标与 Robots.txt。
