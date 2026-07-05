@@ -24,7 +24,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -124,7 +125,8 @@ input {
 }
 
 .mobile-editor-title,
-.mobile-editor-tags {
+.mobile-editor-tags,
+.mobile-editor-notebook-select {
   width: 100%;
   border: 0;
   background: #fff;
@@ -139,10 +141,36 @@ input {
 }
 
 .mobile-editor-tags {
+  min-width: 0;
+  flex: 1;
   color: #64748b;
   font-size: 15px;
   line-height: 1.5;
   padding: 4px 0;
+}
+
+.mobile-editor-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mobile-editor-notebook-select {
+  flex: 0 1 auto;
+  max-width: 46%;
+  min-width: 7.5rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+  padding: 5px 26px 5px 8px;
+}
+
+.mobile-editor-notebook-select:disabled {
+  color: #94a3b8;
 }
 
 .mobile-editor-title::placeholder,

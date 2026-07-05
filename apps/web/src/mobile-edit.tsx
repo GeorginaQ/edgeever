@@ -5,7 +5,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { ImagePlus } from "lucide-react";
-import { docToMarkdown, emptyDoc, markdownToDoc, type MemoDetail, type Resource, type TiptapDoc } from "@edgeever/shared";
+import { docToMarkdown, emptyDoc, markdownToDoc, type MemoDetail, type Notebook, type Resource, type TiptapDoc } from "@edgeever/shared";
+import { getNotebookMoveOptions } from "@/lib/app-helpers";
 import { compressImageForUpload } from "@/lib/image-compression";
 import "./styles/mobile-markdown-editor.css";
 
@@ -17,6 +18,10 @@ const DEFAULT_MEMO_TITLE = "无标题笔记";
 
 type MemoResponse = {
   memo: MemoDetail;
+};
+
+type ListNotebooksResponse = {
+  notebooks: Notebook[];
 };
 
 type ResourceResponse = {
@@ -97,6 +102,8 @@ const MobileTiptapEditorApp = () => {
   const draftKey = memoId ? `${DRAFT_STORAGE_PREFIX}${memoId}` : "";
   const [memo, setMemo] = useState<MemoDetail | null>(null);
   const memoRef = useRef<MemoDetail | null>(null);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [notebookUpdatePending, setNotebookUpdatePending] = useState(false);
   const [title, setTitle] = useState("");
   const titleRef = useRef("");
   const [tagsText, setTagsText] = useState("");
@@ -105,6 +112,7 @@ const MobileTiptapEditorApp = () => {
   const [saveState, setSaveState] = useState<SaveState>("loading");
   const saveStateRef = useRef<SaveState>("loading");
   const [error, setError] = useState<string | null>(null);
+  const notebookOptions = useMemo(() => getNotebookMoveOptions(notebooks), [notebooks]);
   const dirtyRef = useRef(false);
   const leavingRef = useRef(false);
   const savingRef = useRef(false);
@@ -253,6 +261,7 @@ const MobileTiptapEditorApp = () => {
           }),
         });
 
+        memoRef.current = data.memo;
         setMemo(data.memo);
         lastSavedSnapshotRef.current = currentSnapshot();
         dirtyRef.current = false;
@@ -337,6 +346,53 @@ const MobileTiptapEditorApp = () => {
     scheduleMetadataSave();
   };
 
+  const handleNotebookChange = async (nextNotebookId: string) => {
+    const currentMemo = memoRef.current;
+    if (!currentMemo || !nextNotebookId || nextNotebookId === currentMemo.notebookId || notebookUpdatePending) {
+      return;
+    }
+
+    setNotebookUpdatePending(true);
+    setSaveStateStable("saving");
+    setError(null);
+
+    try {
+      if (dirtyRef.current) {
+        const saved = await saveNow();
+        if (!saved) {
+          return;
+        }
+      }
+
+      const sourceMemo = memoRef.current;
+      if (!sourceMemo || nextNotebookId === sourceMemo.notebookId) {
+        return;
+      }
+
+      const data = await requestJson<MemoResponse>(`/api/v1/memos/${encodeURIComponent(sourceMemo.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          expectedRevision: sourceMemo.revision,
+          notebookId: nextNotebookId,
+        }),
+      });
+
+      memoRef.current = data.memo;
+      setMemo(data.memo);
+      setSaveStateStable("saved");
+      window.setTimeout(() => {
+        if (!dirtyRef.current && !savingRef.current && !leavingRef.current) {
+          setSaveStateStable("idle");
+        }
+      }, 1200);
+    } catch (notebookError) {
+      setError(notebookError instanceof Error ? notebookError.message : "切换笔记本失败");
+      setSaveStateStable("error");
+    } finally {
+      setNotebookUpdatePending(false);
+    }
+  };
+
   const handleImageUpload = async (file?: File | null) => {
     const currentMemo = memoRef.current;
     if (!currentMemo || !editor || !file) {
@@ -389,6 +445,26 @@ const MobileTiptapEditorApp = () => {
       editor.commands.focus("end");
     }, INITIAL_EDITOR_FOCUS_DELAY_MS);
   }, [editor]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void requestJson<ListNotebooksResponse>("/api/v1/notebooks")
+      .then((data) => {
+        if (!cancelled) {
+          setNotebooks(data.notebooks);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setNotebooks([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!memoId || !editor) {
@@ -553,15 +629,34 @@ const MobileTiptapEditorApp = () => {
           placeholder={DEFAULT_MEMO_TITLE}
           onChange={(event) => handleTitleChange(event.target.value)}
         />
-        <input
-          className="mobile-editor-tags"
-          value={tagsText}
-          autoComplete="on"
-          autoCorrect="on"
-          inputMode="text"
-          placeholder="添加标签，用逗号分隔"
-          onChange={(event) => handleTagsChange(event.target.value)}
-        />
+        <div className="mobile-editor-meta-row">
+          <select
+            className="mobile-editor-notebook-select"
+            value={memo?.notebookId ?? ""}
+            aria-label="所在笔记本"
+            disabled={!memo || notebookUpdatePending || saveState === "loading" || notebookOptions.length === 0}
+            onChange={(event) => void handleNotebookChange(event.target.value)}
+          >
+            {notebookOptions.length === 0 ? (
+              <option value={memo?.notebookId ?? ""}>等待分类</option>
+            ) : (
+              notebookOptions.map((notebook) => (
+                <option key={notebook.id} value={notebook.id}>
+                  {notebook.selectLabel}
+                </option>
+              ))
+            )}
+          </select>
+          <input
+            className="mobile-editor-tags"
+            value={tagsText}
+            autoComplete="on"
+            autoCorrect="on"
+            inputMode="text"
+            placeholder="添加标签，用逗号分隔"
+            onChange={(event) => handleTagsChange(event.target.value)}
+          />
+        </div>
 
         <div className="mobile-editor-tool-row">
           <button
