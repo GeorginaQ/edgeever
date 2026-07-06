@@ -32,7 +32,10 @@ export const siteCopy = {
     nav: {
       homeAria: "EdgeEver 首页",
       features: "功能特性",
+      guides: "使用指南",
       deploy: "安装部署",
+      migration: "从印象笔记迁移",
+      advancedPlay: "进阶玩法",
       blog: "博客",
       contact: "联系我们",
       demo: "在线演示",
@@ -95,6 +98,31 @@ export const siteCopy = {
         },
       ],
     },
+    guides: {
+      eyebrow: "EdgeEver Guides",
+      heading: "从安装、迁移到 AI Agent 玩法",
+      description: "把最关键的上手路径放到显眼位置：先部署自己的实例，再把旧笔记迁过来，最后用 MCP 接入 AI Agent 整理长期知识库。",
+      items: [
+        {
+          title: "AI Agent 一句话部署",
+          summary: "按仓库推荐流程，让 Codex、Claude Code、Cursor 等助手协助完成 Cloudflare 部署。",
+          href: "/blog/ai-agent-deploy-cloudflare",
+          cta: "查看部署指南",
+        },
+        {
+          title: "从印象笔记迁移",
+          summary: "通过 EdgeEver MCP、evernote-backup 和 ENEX 导入脚本，把旧笔记库迁移到自托管实例。",
+          href: "/guides/evernote-migration",
+          cta: "查看迁移指南",
+        },
+        {
+          title: "AI Agent 进阶玩法",
+          summary: "用 MCP 读取真实笔记，生成知识地图、标签建议和个人资料整理工作流。",
+          href: "/guides/advanced-play",
+          cta: "查看玩法",
+        },
+      ],
+    },
   },
   "en-US": {
     layout: {
@@ -107,7 +135,10 @@ export const siteCopy = {
     nav: {
       homeAria: "EdgeEver home",
       features: "Features",
+      guides: "Guides",
       deploy: "Deploy",
+      migration: "Migrate from Evernote",
+      advancedPlay: "Advanced play",
       blog: "Blog",
       contact: "Contact",
       demo: "Demo",
@@ -167,6 +198,31 @@ export const siteCopy = {
             "Existing notes support offline drafts and a local sync queue for weak network conditions.",
             "Single-user login, PBKDF2-SHA256 password hashing, and API tokens stay behind a simple UI.",
           ],
+        },
+      ],
+    },
+    guides: {
+      eyebrow: "EdgeEver Guides",
+      heading: "Deploy, migrate, and put AI agents to work",
+      description: "The fastest paths into EdgeEver: deploy your own instance, move an existing Evernote archive, then connect MCP-powered AI workflows.",
+      items: [
+        {
+          title: "Deploy with an AI Agent",
+          summary: "Follow the repository-backed flow for Codex, Claude Code, Cursor, and similar assistants to deploy on Cloudflare.",
+          href: "/blog/ai-agent-deploy-cloudflare",
+          cta: "Read deployment guide",
+        },
+        {
+          title: "Migrate from Evernote",
+          summary: "Use EdgeEver MCP, evernote-backup, and the ENEX import script to migrate an old notes library into your self-hosted instance.",
+          href: "/guides/evernote-migration",
+          cta: "Read migration guide",
+        },
+        {
+          title: "AI Agent advanced play",
+          summary: "Turn real notes into knowledge maps, tag cleanup plans, and higher-level personal knowledge workflows through MCP.",
+          href: "/guides/advanced-play",
+          cta: "Explore workflows",
         },
       ],
     },

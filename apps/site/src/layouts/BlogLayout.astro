@@ -3,16 +3,16 @@ import Container from "@/components/container.astro";
 import { getFormattedDate } from "@/utils/all";
 import Layout from "./Layout.astro";
 
-const { frontmatter } = Astro.props;
+const { frontmatter, backHref, backLabel, schemaType = "BlogPosting" } = Astro.props;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
 const imageUrl = new URL(frontmatter.image.src, Astro.site).toString();
 const isEnglish = Astro.url.pathname.startsWith("/en/");
-const blogHref = isEnglish ? "/en/blog" : "/blog";
-const backLabel = isEnglish ? "Back to blog" : "返回博客";
+const fallbackBackHref = isEnglish ? "/en/blog" : "/blog";
+const fallbackBackLabel = isEnglish ? "Back to blog" : "返回博客";
 
 const articleJsonLd = {
   "@context": "https://schema.org",
-  "@type": "BlogPosting",
+  "@type": schemaType,
   headline: frontmatter.title,
   description: frontmatter.snippet,
   image: imageUrl,
@@ -80,9 +80,9 @@ const articleJsonLd = {
     </div>
     <div class="text-center mt-8">
       <a
-        href={blogHref}
+        href={backHref ?? fallbackBackHref}
         class="bg-gray-100 px-5 py-3 rounded-md hover:bg-gray-200 transition"
-        >{backLabel}</a
+        >{backLabel ?? fallbackBackLabel}</a
       >
     </div>
   </Container>

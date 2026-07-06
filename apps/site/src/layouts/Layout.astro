@@ -102,6 +102,7 @@ const localeRedirectScript = `(() => {
     return null;
   };
   const getCurrentLocale = (pathname) => pathname === "/en" || pathname.startsWith("/en/") ? "en-US" : "zh-CN";
+  const isExplicitLocalePath = (pathname) => pathname === "/en" || pathname.startsWith("/en/");
   const getLocalizedPath = (locale, pathname) => {
     const normalizedPath = pathname.startsWith("/") ? pathname : "/" + pathname;
 
@@ -115,7 +116,21 @@ const localeRedirectScript = `(() => {
 
     return normalizedPath.startsWith("/en/") ? normalizedPath : "/en" + normalizedPath;
   };
-  const desiredLocale = getStoredLocale() ?? getBrowserLocale();
+  const getDesiredLocale = (pathname) => {
+    if (isExplicitLocalePath(pathname)) {
+      return null;
+    }
+
+    const browserLocale = getBrowserLocale();
+    const storedLocale = getStoredLocale();
+
+    if (browserLocale === "zh-CN" || storedLocale === "zh-CN") {
+      return "zh-CN";
+    }
+
+    return storedLocale ?? browserLocale;
+  };
+  const desiredLocale = getDesiredLocale(window.location.pathname);
 
   if (desiredLocale && desiredLocale !== getCurrentLocale(window.location.pathname)) {
     const nextPath = getLocalizedPath(desiredLocale, window.location.pathname);

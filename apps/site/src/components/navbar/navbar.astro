@@ -14,8 +14,21 @@ const menuitems = [
     path: `${getLocalizedPath(locale, "/")}#features`,
   },
   {
-    title: copy.deploy,
-    path: getLocalizedPath(locale, "/blog/ai-agent-deploy-cloudflare"),
+    title: copy.guides,
+    children: [
+      {
+        title: copy.deploy,
+        path: getLocalizedPath(locale, "/blog/ai-agent-deploy-cloudflare"),
+      },
+      {
+        title: copy.migration,
+        path: getLocalizedPath(locale, "/guides/evernote-migration"),
+      },
+      {
+        title: copy.advancedPlay,
+        path: getLocalizedPath(locale, "/guides/advanced-play"),
+      },
+    ],
   },
   {
     title: copy.blog,
