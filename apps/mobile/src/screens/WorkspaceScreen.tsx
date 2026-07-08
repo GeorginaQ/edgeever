@@ -339,6 +339,30 @@ export const WorkspaceScreen = () => {
     setSelectionMoveOpen(false);
   };
 
+  const toggleVisibleSelection = () => {
+    const visibleMemoIds = memos.map((memo) => memo.id);
+
+    if (visibleMemoIds.length === 0) {
+      return;
+    }
+
+    setSelectionMode(true);
+    setSelectedMemoIds((current) => {
+      const next = new Set(current);
+      const allVisibleSelected = visibleMemoIds.every((memoId) => next.has(memoId));
+
+      for (const memoId of visibleMemoIds) {
+        if (allVisibleSelected) {
+          next.delete(memoId);
+        } else {
+          next.add(memoId);
+        }
+      }
+
+      return next;
+    });
+  };
+
   const enterSelectionMode = () => {
     setSelectionMode(true);
   };
@@ -363,6 +387,8 @@ export const WorkspaceScreen = () => {
   const isRefreshing = notebooksQuery.isFetching || memosQuery.isFetching || searchQuery.isFetching || memoDetailQuery.isFetching;
   const selectedMemoIdList = Array.from(selectedMemoIds);
   const selectedMemos = memos.filter((memo) => selectedMemoIds.has(memo.id));
+  const canToggleVisibleSelection = memos.length > 0;
+  const allVisibleMemosSelected = canToggleVisibleSelection && memos.every((memo) => selectedMemoIds.has(memo.id));
   const nextSelectionPinValue = selectedMemos.some((memo) => !memo.isPinned);
 
   useEffect(() => {
@@ -1005,12 +1031,15 @@ export const WorkspaceScreen = () => {
           canMove={memoView !== "trash" && selectedMemoIds.size > 0}
           isBusy={deleteMemosMutation.isPending || moveMemosMutation.isPending || pinMemosMutation.isPending || mergeMemosMutation.isPending}
           isTrashView={memoView === "trash"}
+          onToggleVisibleSelection={toggleVisibleSelection}
           onClear={clearSelection}
           onDelete={handleDeleteSelection}
           onMerge={handleMergeSelection}
           onMove={() => setSelectionMoveOpen(true)}
           onPin={() => pinMemosMutation.mutate({ memoIds: selectedMemoIdList, isPinned: nextSelectionPinValue })}
           pinLabel={nextSelectionPinValue ? "置顶" : "取消置顶"}
+          selectionToggleDisabled={!canToggleVisibleSelection}
+          selectionToggleLabel={allVisibleMemosSelected ? "取消当前列表" : "选择当前列表"}
           selectedCount={selectedMemoIds.size}
         />
       ) : null}
@@ -3925,7 +3954,10 @@ const SelectionActionBar = ({
   onMerge,
   onMove,
   onPin,
+  onToggleVisibleSelection,
   pinLabel,
+  selectionToggleDisabled,
+  selectionToggleLabel,
   selectedCount,
 }: {
   canMerge: boolean;
@@ -3937,15 +3969,23 @@ const SelectionActionBar = ({
   onMerge: () => void;
   onMove: () => void;
   onPin: () => void;
+  onToggleVisibleSelection: () => void;
   pinLabel: string;
+  selectionToggleDisabled: boolean;
+  selectionToggleLabel: string;
   selectedCount: number;
 }) => (
   <View style={styles.selectionBar}>
     <View style={styles.selectionBarHeader}>
       <Text style={styles.selectionCount}>已选 {selectedCount} 条</Text>
-      <Pressable onPress={onClear}>
-        <Text style={styles.selectionClear}>取消</Text>
-      </Pressable>
+      <View style={styles.selectionHeaderActions}>
+        <Pressable disabled={selectionToggleDisabled} onPress={onToggleVisibleSelection}>
+          <Text style={[styles.selectionClear, selectionToggleDisabled && styles.selectionClearDisabled]}>{selectionToggleLabel}</Text>
+        </Pressable>
+        <Pressable onPress={onClear}>
+          <Text style={styles.selectionClear}>取消</Text>
+        </Pressable>
+      </View>
     </View>
     <View style={styles.selectionActions}>
       <SelectionAction disabled={isBusy || !canMove} icon={<Folder color={canMove ? "#0f172a" : "#cbd5e1"} size={18} />} label="移动" onPress={onMove} />
@@ -5716,10 +5756,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
+  selectionHeaderActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
   selectionClear: {
     color: "#2563eb",
     fontSize: 13,
     fontWeight: "800",
+  },
+  selectionClearDisabled: {
+    color: "#cbd5e1",
   },
   selectionActions: {
     flexDirection: "row",
