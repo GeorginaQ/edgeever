@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
@@ -2971,77 +2971,162 @@ const MemoDetailModal = ({
   onRestore: (memo: MemoDetail) => void;
   onTogglePin: (memo: MemoDetail) => void;
   visible: boolean;
-}) => (
-  <Modal animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet" visible={visible}>
-    <SafeAreaView style={styles.modalSafeArea}>
-      <View style={styles.modalHeader}>
-        <IconButton onPress={onClose}>
-          <X color="#0f172a" size={20} />
-        </IconButton>
-        <Text numberOfLines={1} style={styles.modalTitle}>
-          {memo?.title?.trim() || DEFAULT_MEMO_TITLE}
-        </Text>
-        <View style={styles.iconButtonPlaceholder} />
-      </View>
+}) => {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const detailText = memo?.contentMarkdown || memo?.contentText || "没有正文内容";
+  const searchMatches = useMemo(() => getTextSearchMatches(detailText, searchQuery), [detailText, searchQuery]);
+  const searchMatchLabel = searchQuery.trim() ? `${searchMatches.length > 0 ? activeMatchIndex + 1 : 0}/${searchMatches.length}` : "0/0";
 
-      {isLoading ? (
-        <View style={styles.centerState}>
-          <ActivityIndicator color="#0f172a" />
+  useEffect(() => {
+    setActiveMatchIndex(0);
+  }, [detailText, searchQuery]);
+
+  const moveSearchMatch = (direction: 1 | -1) => {
+    if (searchMatches.length === 0) {
+      return;
+    }
+
+    setActiveMatchIndex((current) => (current + direction + searchMatches.length) % searchMatches.length);
+  };
+
+  return (
+    <Modal animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet" visible={visible}>
+      <SafeAreaView style={styles.modalSafeArea}>
+        <View style={styles.modalHeader}>
+          <IconButton onPress={onClose}>
+            <X color="#0f172a" size={20} />
+          </IconButton>
+          <Text numberOfLines={1} style={styles.modalTitle}>
+            {memo?.title?.trim() || DEFAULT_MEMO_TITLE}
+          </Text>
+          <View style={styles.iconButtonPlaceholder} />
         </View>
-      ) : memo ? (
-        <ScrollView contentContainerStyle={styles.detailContent}>
-          <Text style={styles.detailTitle}>{memo.title?.trim() || DEFAULT_MEMO_TITLE}</Text>
-          <View style={styles.memoMeta}>
-            <Text style={styles.memoDate}>{formatDate(memo.updatedAt)}</Text>
-            <Text style={styles.memoDate}>修订 {memo.revision}</Text>
+
+        {isLoading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color="#0f172a" />
           </View>
-          <View style={styles.actionRow}>
-            {memo.isDeleted ? (
-              <ActionButton disabled={isRestoring} label={isRestoring ? "恢复中" : "恢复"} onPress={() => onRestore(memo)}>
-                <RotateCcw color="#0f172a" size={16} />
-              </ActionButton>
-            ) : (
-              <>
-                <ActionButton disabled={isSaving} label={memo.isPinned ? "取消置顶" : "置顶"} onPress={() => onTogglePin(memo)}>
-                  <Pin color="#0f172a" size={16} />
-                </ActionButton>
-                <ActionButton label="编辑" onPress={() => onEdit(memo)}>
-                  <Pencil color="#0f172a" size={16} />
-                </ActionButton>
-                <ActionButton label="富文本" onPress={() => onRichEdit(memo)}>
-                  <Bold color="#0f172a" size={16} />
-                </ActionButton>
-                <ActionButton label="历史" onPress={() => onOpenRevisions(memo)}>
-                  <History color="#0f172a" size={16} />
-                </ActionButton>
-                <ActionButton label="资源" onPress={onOpenResources}>
-                  <Archive color="#0f172a" size={16} />
-                </ActionButton>
-              </>
-            )}
-            <ActionButton danger disabled={isDeleting} label={isDeleting ? "删除中" : memo.isDeleted ? "永久删除" : "删除"} onPress={() => onDelete(memo)}>
-              <Trash2 color="#b91c1c" size={16} />
-            </ActionButton>
-          </View>
-          {memo.tags.length ? (
-            <View style={styles.tagList}>
-              {memo.tags.map((tag) => (
-                <Text key={tag} style={styles.tag}>
-                  #{tag}
-                </Text>
-              ))}
+        ) : memo ? (
+          <ScrollView contentContainerStyle={styles.detailContent}>
+            <Text style={styles.detailTitle}>{memo.title?.trim() || DEFAULT_MEMO_TITLE}</Text>
+            <View style={styles.memoMeta}>
+              <Text style={styles.memoDate}>{formatDate(memo.updatedAt)}</Text>
+              <Text style={styles.memoDate}>修订 {memo.revision}</Text>
             </View>
-          ) : null}
-          <Text style={styles.detailMarkdown}>{memo.contentMarkdown || memo.contentText || "没有正文内容"}</Text>
-        </ScrollView>
-      ) : (
-        <View style={styles.centerState}>
-          <Text style={styles.errorText}>笔记加载失败</Text>
-        </View>
-      )}
-    </SafeAreaView>
-  </Modal>
-);
+            <View style={styles.actionRow}>
+              {memo.isDeleted ? (
+                <ActionButton disabled={isRestoring} label={isRestoring ? "恢复中" : "恢复"} onPress={() => onRestore(memo)}>
+                  <RotateCcw color="#0f172a" size={16} />
+                </ActionButton>
+              ) : (
+                <>
+                  <ActionButton disabled={isSaving} label={memo.isPinned ? "取消置顶" : "置顶"} onPress={() => onTogglePin(memo)}>
+                    <Pin color="#0f172a" size={16} />
+                  </ActionButton>
+                  <ActionButton label="编辑" onPress={() => onEdit(memo)}>
+                    <Pencil color="#0f172a" size={16} />
+                  </ActionButton>
+                  <ActionButton label="富文本" onPress={() => onRichEdit(memo)}>
+                    <Bold color="#0f172a" size={16} />
+                  </ActionButton>
+                  <ActionButton label="查找" onPress={() => setSearchOpen((open) => !open)}>
+                    <Search color="#0f172a" size={16} />
+                  </ActionButton>
+                  <ActionButton label="历史" onPress={() => onOpenRevisions(memo)}>
+                    <History color="#0f172a" size={16} />
+                  </ActionButton>
+                  <ActionButton label="资源" onPress={onOpenResources}>
+                    <Archive color="#0f172a" size={16} />
+                  </ActionButton>
+                </>
+              )}
+              <ActionButton danger disabled={isDeleting} label={isDeleting ? "删除中" : memo.isDeleted ? "永久删除" : "删除"} onPress={() => onDelete(memo)}>
+                <Trash2 color="#b91c1c" size={16} />
+              </ActionButton>
+            </View>
+            {searchOpen ? (
+              <View style={styles.noteSearchPanel}>
+                <View style={styles.searchBox}>
+                  <Search color="#64748b" size={18} />
+                  <TextInput
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onChangeText={setSearchQuery}
+                    placeholder="搜索当前笔记"
+                    placeholderTextColor="#94a3b8"
+                    style={styles.searchInput}
+                    value={searchQuery}
+                  />
+                  <Text style={[styles.noteSearchCount, searchQuery.trim() && searchMatches.length === 0 && styles.noteSearchCountEmpty]}>{searchMatchLabel}</Text>
+                </View>
+                <View style={styles.tokenActionRow}>
+                  <ActionButton disabled={searchMatches.length === 0} label="上一条" onPress={() => moveSearchMatch(-1)}>
+                    <Search color={searchMatches.length === 0 ? "#cbd5e1" : "#0f172a"} size={16} />
+                  </ActionButton>
+                  <ActionButton disabled={searchMatches.length === 0} label="下一条" onPress={() => moveSearchMatch(1)}>
+                    <Search color={searchMatches.length === 0 ? "#cbd5e1" : "#0f172a"} size={16} />
+                  </ActionButton>
+                </View>
+              </View>
+            ) : null}
+            {memo.tags.length ? (
+              <View style={styles.tagList}>
+                {memo.tags.map((tag) => (
+                  <Text key={tag} style={styles.tag}>
+                    #{tag}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            <HighlightedDetailText activeIndex={activeMatchIndex} matches={searchMatches} text={detailText} />
+          </ScrollView>
+        ) : (
+          <View style={styles.centerState}>
+            <Text style={styles.errorText}>笔记加载失败</Text>
+          </View>
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+const HighlightedDetailText = ({
+  activeIndex,
+  matches,
+  text,
+}: {
+  activeIndex: number;
+  matches: Array<{ end: number; start: number }>;
+  text: string;
+}) => {
+  if (matches.length === 0) {
+    return <Text style={styles.detailMarkdown}>{text}</Text>;
+  }
+
+  const segments: ReactNode[] = [];
+  let cursor = 0;
+
+  matches.forEach((match, index) => {
+    if (match.start > cursor) {
+      segments.push(text.slice(cursor, match.start));
+    }
+
+    segments.push(
+      <Text key={`${match.start}-${match.end}`} style={index === activeIndex ? styles.noteSearchHighlightActive : styles.noteSearchHighlight}>
+        {text.slice(match.start, match.end)}
+      </Text>
+    );
+    cursor = match.end;
+  });
+
+  if (cursor < text.length) {
+    segments.push(text.slice(cursor));
+  }
+
+  return <Text style={styles.detailMarkdown}>{segments}</Text>;
+};
 
 const RichEditorModal = ({
   baseUrl,
@@ -4102,6 +4187,32 @@ const getTokenScopeLabel = (scope: string) => {
 const getMobileLocalePreferenceLabel = (locale: MobileLocaleMode) =>
   MOBILE_LOCALE_OPTIONS.find((option) => option.value === locale)?.label ?? "跟随系统";
 
+const getTextSearchMatches = (text: string, query: string) => {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const normalizedText = text.toLowerCase();
+  const matches: Array<{ end: number; start: number }> = [];
+  let cursor = 0;
+
+  while (cursor < normalizedText.length) {
+    const start = normalizedText.indexOf(normalizedQuery, cursor);
+
+    if (start === -1) {
+      break;
+    }
+
+    const end = start + normalizedQuery.length;
+    matches.push({ end, start });
+    cursor = end;
+  }
+
+  return matches;
+};
+
 const buildMcpRemoteConfig = (baseUrl: string, token: string) =>
   JSON.stringify(
     {
@@ -4850,6 +4961,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 25,
     marginTop: 20,
+  },
+  noteSearchPanel: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#e2e8f0",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    marginTop: 14,
+    padding: 10,
+  },
+  noteSearchCount: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  noteSearchCountEmpty: {
+    color: "#b91c1c",
+  },
+  noteSearchHighlight: {
+    backgroundColor: "#fef3c7",
+    color: "#78350f",
+  },
+  noteSearchHighlightActive: {
+    backgroundColor: "#fde68a",
+    color: "#0f172a",
+    fontWeight: "800",
   },
   actionRow: {
     flexDirection: "row",
