@@ -107,7 +107,7 @@ The desktop app remains on the roadmap and is planned to use Tauri.
 - Official site: Astro static site in `apps/site`, deployable to Cloudflare Pages.
 - Frontend: Vite, React, React Router, TanStack Query, Tailwind CSS, shadcn/ui, and Radix UI.
 - Editor: TipTap / ProseMirror with Markdown support; PWA uses vite-plugin-pwa, Workbox, and Dexie.
-- Mobile app: Expo, React Native, Expo Router, TanStack Query, Expo SQLite, and AsyncStorage, with a local data mirror, incremental sync, and offline note creation and editing.
+- Mobile app: Expo + React Native, with SQLite local storage and incremental sync.
 - Web clipper: Manifest V3, Mozilla Readability, and Turndown for Chrome and Microsoft Edge.
 - Backend: Cloudflare Workers, Hono, Zod, D1, and R2, with REST API, OpenAPI, and Remote MCP.
 

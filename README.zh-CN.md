@@ -106,7 +106,7 @@ APP端初版已开发完成，上架审核中。
 - 官网：Astro 静态站点，位于 `apps/site`，可独立构建并部署到 Cloudflare Pages。
 - 前端：Vite、React、React Router、TanStack Query，UI 基于 Tailwind CSS、shadcn/ui、Radix UI。
 - 编辑器：TipTap / ProseMirror，支持 Markdown；PWA 使用 vite-plugin-pwa、Workbox、Dexie。
-- 移动 App：Expo、React Native、Expo Router、TanStack Query、Expo SQLite 与 AsyncStorage，支持本地数据镜像、增量同步及离线新建和编辑。
+- 移动 App：Expo + React Native，采用 SQLite 本地存储与增量同步。
 - 网页裁剪：Manifest V3、Mozilla Readability、Turndown，支持 Chrome 与 Microsoft Edge。
 - 后端：Cloudflare Workers、Hono、Zod、D1、R2，提供 REST API、OpenAPI 与 Remote MCP。
 
