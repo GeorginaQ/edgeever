@@ -51,7 +51,12 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import openApiSpec from "../../../docs/openapi.json";
 import { hasBootstrapCredential, verifyBootstrapPassword } from "./auth-bootstrap";
-import { isDemoModeEnabled, resolveDemoPasswordHash, shouldUpsertDemoSeedRecord } from "./demo-mode";
+import {
+  isDemoModeEnabled,
+  isProtectedDemoAccount,
+  resolveDemoPasswordHash,
+  shouldUpsertDemoSeedRecord,
+} from "./demo-mode";
 
 type Bindings = {
   DB: D1Database;
@@ -613,6 +618,12 @@ app.patch("/api/v1/users/:id", zValidator("json", UserUpdateSchema), async (c) =
   const input = c.req.valid("json");
   const current = await getInstanceUser(c.env.DB, userId);
   if (!current) return notFound(c, "User not found");
+  if (
+    isProtectedDemoAccount(c.env.EDGE_EVER_DEMO_MODE, c.env.EDGE_EVER_AUTH_USERNAME, current.username)
+    && (input.password !== undefined || input.isDisabled !== undefined)
+  ) {
+    return forbidden(c, "The demo owner account uses fixed credentials and cannot be modified.");
+  }
   if (current.role === "owner" && input.isDisabled === true) {
     return badRequest(c, "The instance owner cannot be disabled.");
   }
