@@ -493,6 +493,7 @@ export const zhCN = {
     replaceAll: "全部替换",
     closeSearch: "关闭搜索",
     editMemo: "编辑笔记",
+    characterCount: "{{count}} 字",
   },
   editorToolbar: {
     toolbar: "编辑器工具栏",

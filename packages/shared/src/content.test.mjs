@@ -1,5 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { docToMarkdown, markdownToDoc, resolveMemoContentDoc } from "./content.ts";
+import { countMemoCharacters, docToMarkdown, markdownToDoc, resolveMemoContentDoc } from "./content.ts";
+
+describe("memo character count", () => {
+  test("counts punctuation while excluding whitespace and formatting", () => {
+    const doc = markdownToDoc("你好， **EdgeEver**!\n\n下一行");
+
+    expect(countMemoCharacters(doc)).toBe(15);
+  });
+
+  test("counts grapheme clusters and ignores image labels", () => {
+    const doc = {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "e\u0301 👨‍👩‍👧‍👦" }] },
+        { type: "image", attrs: { alt: "不计入" } },
+      ],
+    };
+
+    expect(countMemoCharacters(doc)).toBe(2);
+  });
+});
 
 describe("Markdown table conversion", () => {
   const markdown = [

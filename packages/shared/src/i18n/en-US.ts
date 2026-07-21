@@ -493,6 +493,7 @@ export const enUS = {
     replaceAll: "Replace all",
     closeSearch: "Close search",
     editMemo: "Edit note",
+    characterCount: "{{count}} chars",
   },
   editorToolbar: {
     toolbar: "Editor toolbar",

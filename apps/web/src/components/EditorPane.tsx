@@ -60,6 +60,7 @@ import { api } from "@/lib/api";
 import { consumeStandaloneMobileEditorReturn, openStandaloneMobileEditor } from "@/lib/mobile-editor";
 import { cn, formatDateTime, parseTagsText } from "@/lib/utils";
 import {
+  countMemoCharacters,
   docToMarkdown,
   markdownToDoc,
   resolveMemoContentDoc,
@@ -1106,6 +1107,7 @@ const RichEditorPane = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [dirtyVersion, setDirtyVersion] = useState(0);
   const [, setEditorStateVersion] = useState(0);
+  const [editorContentVersion, setEditorContentVersion] = useState(0);
   const [imageUploadState, setImageUploadState] = useState<"idle" | "compressing" | "uploading" | "error">("idle");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [mobileNotebookSheetOpen, setMobileNotebookSheetOpen] = useState(false);
@@ -1385,6 +1387,19 @@ const RichEditorPane = ({
     };
   }, [editor]);
 
+  useEffect(() => {
+    if (!isEditorReady(editor)) {
+      return;
+    }
+
+    const refreshCharacterCount = () => setEditorContentVersion((version) => version + 1);
+    editor.on("update", refreshCharacterCount);
+
+    return () => {
+      editor.off("update", refreshCharacterCount);
+    };
+  }, [editor]);
+
   const noteSearchMatches = useMemo(
     () => getEditorSearchMatches(editor, noteSearchQuery),
     [dirtyVersion, editor, memo?.id, noteSearchQuery]
@@ -1616,6 +1631,13 @@ const RichEditorPane = ({
 
     return currentEditor.getJSON() as TiptapDoc;
   }, [getMobilePlainTextValue, markdownSource, useMarkdownSourceEditor, useMobilePlainTextEditor]);
+
+  const characterCount = useMemo(() => {
+    const contentJson = getCurrentContentJson()
+      ?? (memo ? resolveMemoContentDoc(memo.contentJson, memo.contentMarkdown) : null);
+
+    return countMemoCharacters(contentJson);
+  }, [dirtyVersion, editorContentVersion, getCurrentContentJson, memo]);
 
   const currentSnapshot = useCallback(() => {
     const contentJson = getCurrentContentJson();
@@ -2356,6 +2378,12 @@ const RichEditorPane = ({
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
+            <span
+              className="hidden whitespace-nowrap px-1.5 text-xs tabular-nums text-slate-400 sm:inline-flex"
+              title={t("editor.characterCount", { count: characterCount })}
+            >
+              {t("editor.characterCount", { count: characterCount })}
+            </span>
             {imageUploadState !== "idle" && (
               <span
                 className={cn(
