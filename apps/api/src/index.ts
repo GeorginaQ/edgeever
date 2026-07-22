@@ -5353,6 +5353,19 @@ const ensureDemoSeed = async (
     }
 
     const contentJson = markdownToDoc(memo.markdown);
+    const applyDemoImageWidths = (nodes: any[]) => {
+      for (const node of nodes) {
+        if (node.type === "image") {
+          node.attrs = { ...node.attrs, width: 35 };
+        }
+        if (Array.isArray(node.content)) {
+          applyDemoImageWidths(node.content);
+        }
+      }
+    };
+    if (Array.isArray(contentJson.content)) {
+      applyDemoImageWidths(contentJson.content);
+    }
     const contentText = docToText(contentJson);
     const contentHash = await sha256(memo.markdown + JSON.stringify(contentJson));
 
