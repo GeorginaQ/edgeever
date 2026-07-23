@@ -72,11 +72,46 @@ const applyInlineStyles = (root: HTMLElement, editorTheme?: string) => {
   });
 };
 
-export const buildWeChatClipboardHtml = (editor: Editor) => {
+const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result === "string") {
+      resolve(reader.result);
+      return;
+    }
+    reject(new Error("Could not encode image for clipboard"));
+  };
+  reader.onerror = () => reject(reader.error ?? new Error("Could not read image for clipboard"));
+  reader.readAsDataURL(blob);
+});
+
+const embedImagesForWeChat = async (root: HTMLElement) => {
+  const images = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
+  await Promise.all(images.map(async (image) => {
+    const source = image.getAttribute("src")?.trim();
+    if (!source || source.startsWith("data:")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(source, { credentials: "include" });
+      if (!response.ok) {
+        return;
+      }
+      image.setAttribute("src", await blobToDataUrl(await response.blob()));
+      image.removeAttribute("srcset");
+    } catch {
+      // Keep the original URL when the browser cannot fetch an external image.
+    }
+  }));
+};
+
+export const buildWeChatClipboardHtml = async (editor: Editor) => {
   const container = document.createElement("div");
   container.innerHTML = editor.getHTML();
   const editorTheme = editor.view.dom.closest<HTMLElement>("[data-editor-theme]")?.dataset.editorTheme;
   applyInlineStyles(container, editorTheme);
+  await embedImagesForWeChat(container);
   return container.outerHTML;
 };
 
@@ -106,11 +141,12 @@ const copyHtmlToClipboard = async (html: string, plainText: string) => {
 };
 
 export const copyEditorToWeChat = async (editor: Editor) =>
-  copyHtmlToClipboard(buildWeChatClipboardHtml(editor), editor.getText({ blockSeparator: "\n" }));
+  copyHtmlToClipboard(await buildWeChatClipboardHtml(editor), editor.getText({ blockSeparator: "\n" }));
 
 export const copyMarkdownToWeChat = async (markdown: string) => {
   const container = document.createElement("div");
   container.innerHTML = marked.parse(markdown, { async: false, gfm: true, breaks: false });
   applyInlineStyles(container);
+  await embedImagesForWeChat(container);
   await copyHtmlToClipboard(container.outerHTML, container.textContent ?? "");
 };
