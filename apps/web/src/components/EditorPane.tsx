@@ -27,7 +27,6 @@ import {
   Search,
   Type,
   X,
-  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GitHubRepositoryLink } from "@/components/GitHubRepositoryLink";
@@ -56,6 +55,7 @@ import {
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EditorToolbar } from "./EditorToolbar";
+import { WeChatIcon } from "./WeChatIcon";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "./ThemeProvider";
 import { RevisionHistoryDialog } from "./dialogs/RevisionHistoryDialog";
@@ -2584,17 +2584,28 @@ const RichEditorPane = ({
             <Button className="hidden h-8 w-8 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-300 sm:inline-flex" size="icon" variant="ghost" title={t("editor.searchCurrentMemo")} aria-label={t("editor.searchCurrentMemo")} onClick={() => openNoteSearch()}>
               <Search className="h-5 w-5" strokeWidth={2.25} />
             </Button>
-            <Button
-              className={cn("hidden h-8 items-center gap-1.5 px-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-900 focus-visible:ring-2 focus-visible:ring-emerald-300 sm:inline-flex", wechatCopyState === "copied" && "bg-emerald-50")}
-              variant="ghost"
-              title={t("editor.copyToWeChat")}
-              aria-label={t("editor.copyToWeChat")}
-              onClick={() => void handleCopyToWeChat()}
-              disabled={!editor || effectiveReadOnly || useMobilePlainTextEditor}
-            >
-              <Copy className="h-4 w-4" />
-              {t(wechatCopyState === "copied" ? "editor.copiedToWeChat" : wechatCopyState === "error" ? "editor.copyToWeChatFailed" : "editor.copyToWeChat")}
-            </Button>
+            <TooltipProvider delayDuration={250} skipDelayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className={cn(
+                      "hidden h-8 w-8 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-300 sm:inline-flex",
+                      wechatCopyState === "copied" && "bg-emerald-50"
+                    )}
+                    size="icon"
+                    variant="ghost"
+                    aria-label={t("editor.copyToWeChat")}
+                    onClick={() => void handleCopyToWeChat()}
+                    disabled={!editor || effectiveReadOnly || useMobilePlainTextEditor}
+                  >
+                    <WeChatIcon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {t(wechatCopyState === "copied" ? "editor.copiedToWeChat" : wechatCopyState === "error" ? "editor.copyToWeChatFailed" : "editor.copyToWeChat")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button className="hidden h-8 w-8 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-300 sm:inline-flex" size="icon" variant="ghost" title={t("editor.versionHistory")} aria-label={t("editor.versionHistory")} onClick={() => setHistoryOpen(true)}>
               <History className="h-5 w-5" strokeWidth={2.25} />
             </Button>
