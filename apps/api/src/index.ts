@@ -5364,7 +5364,8 @@ const ensureDemoSeed = async (
   }
 
   for (const memo of DEMO_SEED_MEMOS) {
-    if (!shouldUpsertDemoSeedRecord(existingMemoIds, memo.id, overwriteExisting)) {
+    const isOverviewSeedMemo = memo.id === "memo_demo_overview" || memo.id === "memo_demo_overview_en";
+    if (!overwriteExisting && !isOverviewSeedMemo && existingMemoIds.has(memo.id)) {
       continue;
     }
 
