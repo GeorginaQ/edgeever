@@ -1459,7 +1459,7 @@ export const enUS = {
       localMissing: "No local agent is available. Choose an adapter, or use the built-in assistant.",
       noteAccessUnavailable: "Could not connect to this account's notes. Check the instance connection and sign-in status, then try again.",
       localLoginRequired: "This local agent needs sign-in. Sign in under Settings → Models & Agents, then try again.",
-      workbuddyLoginRequired: "WorkBuddy ACP could not use a saved sign-in. You do not need to install CodeBuddy separately. Choose an ACP sign-in method under Settings → Models & Agents, then try again.",
+      workbuddyLoginRequired: "WorkBuddy ACP could not use a saved sign-in. Choose an ACP sign-in method under Settings → Models & Agents, then try again.",
       agentRefused: "The local agent refused this request. Check its sign-in status or model settings, then try again.",
       unavailable: "Sign in to a personal account to send. Demo mode and signed-out sessions cannot use the built-in assistant.",
       proposalConfirm: "Apply to note",

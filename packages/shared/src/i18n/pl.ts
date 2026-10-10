@@ -1459,7 +1459,7 @@ export const pl = {
       localMissing: "Brak dostępnego lokalnego agenta. Wybierz adapter lub użyj wbudowanego asystenta.",
       noteAccessUnavailable: "Nie udało się połączyć z notatkami tego konta. Sprawdź połączenie z instancją i stan logowania, a potem spróbuj ponownie.",
       localLoginRequired: "Ten lokalny agent wymaga zalogowania. Zaloguj się w Ustawienia → Modele i agenci, a potem spróbuj ponownie.",
-      workbuddyLoginRequired: "WorkBuddy ACP nie mógł użyć zapisanego logowania. Nie musisz osobno instalować CodeBuddy. Wybierz metodę logowania ACP w Ustawienia → Modele i agenci, a potem spróbuj ponownie.",
+      workbuddyLoginRequired: "WorkBuddy ACP nie mógł użyć zapisanego logowania. Wybierz metodę logowania ACP w Ustawienia → Modele i agenci, a potem spróbuj ponownie.",
       agentRefused: "Lokalny agent odrzucił to żądanie. Sprawdź jego stan logowania lub ustawienia modelu, a potem spróbuj ponownie.",
       unavailable: "Zaloguj się na konto osobiste, aby wysłać wiadomość. W trybie demo i bez zalogowania nie można używać wbudowanego asystenta.",
       proposalConfirm: "Zastosuj w notatce",

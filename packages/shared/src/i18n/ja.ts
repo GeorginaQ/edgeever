@@ -1459,7 +1459,7 @@ export const ja = {
       localMissing: "使えるローカル Agent がありません。アダプターを選ぶか、内蔵アシスタントを使ってください。",
       noteAccessUnavailable: "このアカウントのノートに接続できません。インスタンスへの接続とログイン状態を確認して、再試行してください。",
       localLoginRequired: "ローカル Agent へのログインが必要です。「設定 → モデルとエージェント」でログインしてから再試行してください。",
-      workbuddyLoginRequired: "WorkBuddy ACP は保存済みのログインを利用できませんでした。CodeBuddy の別途インストールは不要です。「設定 → モデルとエージェント」で ACP のログイン方法を選び、再試行してください。",
+      workbuddyLoginRequired: "WorkBuddy ACP は保存済みのログインを利用できませんでした。「設定 → モデルとエージェント」で ACP のログイン方法を選び、再試行してください。",
       agentRefused: "ローカル Agent がこのリクエストを拒否しました。ログイン状態またはモデル設定を確認して再試行してください。",
       unavailable: "送信するには個人アカウントでサインインしてください。デモモードや未ログインでは内蔵アシスタントを使えません。",
       proposalConfirm: "ノートに適用",
