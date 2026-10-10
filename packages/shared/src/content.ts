@@ -157,6 +157,22 @@ const docContainsNodeType = (doc: TiptapDoc, nodeType: string): boolean => {
   return visit(doc.content);
 };
 
+/** Upgrade only explicit math fences in older JSON, retaining rich-only content. */
+const upgradeMathCodeFences = (doc: TiptapDoc): TiptapDoc => {
+  const visit = (node: TiptapNode): TiptapNode => {
+    if (node.type === "codeBlock" && node.attrs?.language === "math"
+      && node.content?.every((child) => child.type === "text")) {
+      const latex = node.content.map((child) => (child as TiptapTextNode).text).join("").trim();
+      if (latex) return { type: BLOCK_MATH_NODE_TYPE, attrs: { latex } };
+    }
+    if (!node.content) return node;
+    const content = node.content.map(visit);
+    return content.some((child, index) => child !== node.content?.[index]) ? { ...node, content } : node;
+  };
+  const content = doc.content.map(visit);
+  return content.some((node, index) => node !== doc.content[index]) ? { ...doc, content } : doc;
+};
+
 /**
  * Recovers Markdown features that an older editor schema could not persist in
  * contentJson. The stored Markdown remains the compatibility source in that
@@ -168,9 +184,9 @@ export const resolveMemoContentDoc = (
   contentMarkdown: string | null | undefined
 ): TiptapDoc => {
   const currentDoc = contentJson && Array.isArray(contentJson.content)
-    ? normalizeImageGalleries(
+    ? upgradeMathCodeFences(normalizeImageGalleries(
         upgradeStandaloneFileLinks(upgradeStandalonePdfLinks(upgradeLegacyAttachmentLinks(contentJson))),
-      )
+      ))
     : emptyDoc();
   if (
     !contentMarkdown?.trim() ||
@@ -376,7 +392,9 @@ const protectLiteralDollarPairs = (value: unknown): unknown => {
     return value;
   }
 
-  const node = value as { type?: unknown; text?: unknown; content?: unknown };
+  const node = value as { type?: unknown; text?: unknown; content?: unknown; marks?: Array<{ type?: string }> };
+  // Markdown does not interpret escapes inside code; adding them changes the source.
+  if (node.type === "codeBlock" || node.marks?.some((mark) => mark.type === "code")) return value;
   if (node.type === "text" && typeof node.text === "string") {
     const dollarCount = Array.from(node.text).filter((character) => character === "$").length;
     return dollarCount >= 2
