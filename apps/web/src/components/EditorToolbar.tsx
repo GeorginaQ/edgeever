@@ -24,7 +24,7 @@ import {
   FileCode2,
   FileText,
   Heading,
-  Paintbrush,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MEMO_EDITOR_TOOLBAR_COLLAPSED_CLASS_NAME } from "@/components/MemoEditorChromeDensity";
@@ -411,7 +411,7 @@ export const EditorToolbar = ({
                     aria-label={markdownMode ? t("editorToolbar.markdownTheme") : t("editorToolbar.blockStyle")}
                     onMouseDown={(event) => event.preventDefault()}
                   >
-                    {markdownMode ? <Paintbrush className="h-4 w-4" /> : <Heading className="h-4 w-4" />}
+                    {markdownMode ? <Palette className="h-4 w-4" /> : <Heading className="h-4 w-4" />}
                   </button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
