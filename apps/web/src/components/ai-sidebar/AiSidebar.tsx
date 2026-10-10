@@ -1004,6 +1004,9 @@ function AiSidebarSession({
         active.current = null;
         locked.current = false;
         setBusy(false);
+        // Local agents write through MCP, outside the renderer's query cache.
+        // Also refresh failed runs, which may have completed some writes.
+        void onCompanionNotesChanged?.().catch(() => undefined);
       }
     }
   };
