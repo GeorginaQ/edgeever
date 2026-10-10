@@ -1545,6 +1545,7 @@ export const enUS = {
       updateFailed: "Automatic update failed. The previous version remains in use.",
       authenticating: "Signing in…",
       authenticationTimedOut: "Sign-in did not complete. Please try again.",
+      authenticationFailed: "Sign-in failed or was cancelled. Try again.",
       authenticateWith: "Sign in with {{method}}",
       authAvailableHint: "This agent offers ACP sign-in. If sending a message requires login, complete it here.",
       loginUnavailable: "This ACP connector requires authentication but provides no ACP sign-in method. Authenticate in the agent, then check the connection again.",

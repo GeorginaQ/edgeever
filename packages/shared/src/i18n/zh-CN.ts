@@ -1545,6 +1545,7 @@ export const zhCN = {
       updateFailed: "自动更新失败，正在继续使用原版本。",
       authenticating: "正在登录…",
       authenticationTimedOut: "登录未完成，请重试",
+      authenticationFailed: "登录失败或已取消，请重试",
       authenticateWith: "使用 {{method}} 登录",
       authAvailableHint: "此 Agent 提供 ACP 登录方式。若发消息时提示需要登录，可在这里完成认证。",
       loginUnavailable: "这个 ACP 连接组件要求认证，但没有提供 ACP 登录入口。请在对应代理中完成认证后重试连接。",

@@ -1545,6 +1545,7 @@ export const pl = {
       updateFailed: "Automatyczna aktualizacja nie powiodła się. Nadal używana jest poprzednia wersja.",
       authenticating: "Logowanie…",
       authenticationTimedOut: "Logowanie nie zostało ukończone. Spróbuj ponownie.",
+      authenticationFailed: "Logowanie nie powiodło się lub zostało anulowane. Spróbuj ponownie.",
       authenticateWith: "Zaloguj się przez {{method}}",
       authAvailableHint: "Ten agent oferuje logowanie ACP. Jeśli wysłanie wiadomości wymaga zalogowania, dokończ je tutaj.",
       loginUnavailable: "Ten konektor ACP wymaga uwierzytelnienia, ale nie udostępnia metody logowania ACP. Uwierzytelnij się w agencie, a potem ponownie sprawdź połączenie.",
