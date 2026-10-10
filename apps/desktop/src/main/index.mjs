@@ -48,6 +48,7 @@ import {
   verifyDownloadedWindowsUpdate,
 } from "./windows-update-trust.mjs";
 import electronUpdater from "electron-updater";
+import { createUpdateDiagnostic } from "./update-diagnostics.mjs";
 import { createPluginPublicNetworkRuntime } from "./plugin-public-network.mjs";
 import { createAiDirectRuntime } from "./ai-direct.mjs";
 import { createAcpHostRuntime, registerAcpIpc } from "./acp-host.mjs";
@@ -125,6 +126,7 @@ let sidecar;
 let tray;
 let isQuitting = false;
 let updateState = "idle";
+let updateError = null;
 let updateCheckInFlight = null;
 let updateDownloadInFlight = null;
 let updateCheckTimer = null;
@@ -1091,7 +1093,14 @@ const refreshTrayMenu = () => {
 const desktopUpdateStatus = () => ({
   state: updateState,
   version: downloadedUpdateVersion,
+  error: updateError,
 });
+
+const recordUpdateError = (error, stage) => {
+  updateError = createUpdateDiagnostic(error, {
+    stage, version: app.getVersion(), platform: process.platform, arch: process.arch,
+  });
+};
 
 const publishDesktopUpdateStatus = () => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -1118,6 +1127,7 @@ const trackDesktopUpdateDownload = (downloadPromise, reason) => {
       downloadedUpdateVersion = null;
       windowsDownloadedUpdateVerified = false;
       refreshTrayMenu();
+      recordUpdateError(error, "download");
       publishDesktopUpdateStatus();
       await writeDiagnostic("update.download-failed", { reason, message: error.message });
     })
@@ -1172,10 +1182,14 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
   const now = Date.now();
   if (!force && now - lastUpdateCheckAt < updateCheckFocusThrottleMs) return Promise.resolve(null);
   lastUpdateCheckAt = now;
+  updateError = null;
+  publishDesktopUpdateStatus();
+  let diagnosticStage = "check";
   void writeDiagnostic("update.check-started", { reason });
   updateCheckInFlight = autoUpdater.checkForUpdates()
     .then(async (result) => {
       if (process.platform === "win32" && result?.isUpdateAvailable) {
+        diagnosticStage = "verify-windows-metadata";
         trustedWindowsUpdate = await fetchTrustedWindowsUpdate({
           version: result.updateInfo.version,
           updateInfo: result.updateInfo,
@@ -1199,6 +1213,7 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
       trustedWindowsUpdate = null;
       windowsDownloadedUpdateVerified = false;
       refreshTrayMenu();
+      recordUpdateError(error, diagnosticStage);
       publishDesktopUpdateStatus();
       await writeDiagnostic("update.check-failed", { reason, message: error.message });
       throw error;
@@ -1261,6 +1276,7 @@ const configureAutoUpdater = () => {
         autoUpdater.autoInstallOnAppQuit = true;
       }
       updateState = "downloaded";
+      updateError = null;
       downloadedUpdateVersion = info?.version || downloadedUpdateVersion;
       refreshTrayMenu();
       publishDesktopUpdateStatus();
@@ -1283,6 +1299,7 @@ const configureAutoUpdater = () => {
       downloadedUpdateVersion = null;
       windowsDownloadedUpdateVerified = false;
       refreshTrayMenu();
+      recordUpdateError(error, "verify-windows-package");
       publishDesktopUpdateStatus();
       await writeDiagnostic("update.windows-package-blocked", { message: error.message });
     });
@@ -1295,6 +1312,7 @@ const configureAutoUpdater = () => {
       windowsDownloadedUpdateVerified = false;
     }
     refreshTrayMenu();
+    recordUpdateError(error, updateDownloadInFlight ? "download" : "check");
     publishDesktopUpdateStatus();
     void writeDiagnostic("update.error", { message: error.message });
   });
@@ -1837,7 +1855,12 @@ const startApplication = async () => {
   });
   ipcMain.handle("desktop:update-status", () => desktopUpdateStatus());
   ipcMain.handle("desktop:check-update", async () => {
-    await checkForDesktopUpdate("manual", { force: true, throwOnError: true });
+    try {
+      await checkForDesktopUpdate("manual", { force: true, throwOnError: true });
+    } catch (error) {
+      // Return structured details rather than losing them in Electron IPC errors.
+      if (!updateError) recordUpdateError(error, "check");
+    }
     return desktopUpdateStatus();
   });
   ipcMain.handle("desktop:download-update", () => downloadTrustedDesktopUpdate("manual-download"));

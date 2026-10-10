@@ -1677,6 +1677,11 @@ export const ja = {
     desktopUpdateDownload: "更新をダウンロード",
     desktopUpdateRestart: "再起動して更新",
     desktopUpdateInstalling: "再起動して更新をインストールしています…",
+    desktopUpdateDiagnosticDetails: "診断の詳細",
+    desktopUpdateDiagnosticCopied: "診断情報をコピーしました",
+    desktopUpdateManualDownload: "GitHub から最新版をダウンロード",
+    desktopCopyUpdateDiagnostic: "更新の診断情報をコピー",
+    desktopUpdateDiagnosticHint: "問題の報告時に以下の情報をコピーしてください。at は UTC、localTime は端末の現地時刻です。",
     desktopUpdateFailed: "更新に失敗しました。しばらくしてから再試行してください。",
   },
   feedback: {

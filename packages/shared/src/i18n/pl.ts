@@ -1677,6 +1677,11 @@ export const pl = {
     desktopUpdateDownload: "Pobierz aktualizację",
     desktopUpdateRestart: "Uruchom ponownie, aby zaktualizować",
     desktopUpdateInstalling: "Ponowne uruchamianie w celu instalacji aktualizacji…",
+    desktopUpdateDiagnosticDetails: "Szczegóły diagnostyczne",
+    desktopUpdateDiagnosticCopied: "Skopiowano diagnostykę",
+    desktopUpdateManualDownload: "Pobierz najnowszą wersję z GitHub",
+    desktopCopyUpdateDiagnostic: "Kopiuj diagnostykę aktualizacji",
+    desktopUpdateDiagnosticHint: "Zgłaszając problem, skopiuj poniższe informacje. at to czas UTC, a localTime to czas lokalny urządzenia.",
     desktopUpdateFailed: "Aktualizacja nie powiodła się. Spróbuj ponownie później.",
   },
   feedback: {

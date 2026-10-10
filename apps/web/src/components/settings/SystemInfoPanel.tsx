@@ -324,11 +324,18 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
   useEffect(() => () => {
     if (copyResetTimeoutRef.current !== null) window.clearTimeout(copyResetTimeoutRef.current);
   }, []);
+  const [updateDiagnosticCopyState, setUpdateDiagnosticCopyState] = useState<"idle" | "copied" | "error">("idle");
+  useEffect(() => {
+    if (!active || !desktopAvailable || !desktopBridge?.onUpdateStatus) return;
+    return desktopBridge.onUpdateStatus((status) => {
+      queryClient.setQueryData(["desktop-update-status"], status);
+    });
+  }, [active, desktopAvailable, desktopBridge, queryClient]);
   const desktopUpdateCheckMutation = useMutation({
     mutationFn: () => desktopBridge!.checkUpdate(),
     onSuccess: (status) => {
       queryClient.setQueryData(["desktop-update-status"], status);
-      setDesktopUpdateChecked(true);
+      setDesktopUpdateChecked(!status.error);
     },
   });
   const desktopUpdateInstallMutation = useMutation({
@@ -435,7 +442,20 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
   const desktopUpdateState = desktopUpdateStatusQuery.data?.state ?? "idle";
   const desktopAutoUpdateSupported = clientRuntimeQuery.data?.autoUpdateSupported !== false;
   const desktopUpdateBusy = desktopUpdateCheckMutation.isPending || desktopUpdateInstallMutation.isPending;
-  const desktopUpdateStatus = desktopUpdateInstallMutation.isError || desktopUpdateCheckMutation.isError || desktopUpdateStatusQuery.isError
+  const desktopUpdateDiagnostic = desktopUpdateStatusQuery.data?.error;
+  const updateDiagnosticText = desktopUpdateDiagnostic
+    ? JSON.stringify({ ...desktopUpdateDiagnostic, localTime: new Date(desktopUpdateDiagnostic.at).toLocaleString(i18n.language) }, null, 2)
+    : null;
+  const handleCopyUpdateDiagnostic = async () => {
+    if (!updateDiagnosticText) return;
+    try {
+      const copied = await desktopBridge!.copyText(updateDiagnosticText);
+      setUpdateDiagnosticCopyState(copied ? "copied" : "error");
+    } catch {
+      setUpdateDiagnosticCopyState("error");
+    }
+  };
+  const desktopUpdateStatus = desktopUpdateDiagnostic || desktopUpdateInstallMutation.isError || desktopUpdateCheckMutation.isError || desktopUpdateStatusQuery.isError
     ? t("systemInfo.desktopUpdateFailed")
     : desktopUpdateInstallMutation.isPending
       ? t("systemInfo.desktopUpdateInstalling")
@@ -451,7 +471,10 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
 
   const handleDesktopUpdate = () => {
     if (desktopUpdateState === "downloaded") desktopUpdateInstallMutation.mutate();
-    else desktopUpdateCheckMutation.mutate();
+    else {
+      setUpdateDiagnosticCopyState("idle");
+      desktopUpdateCheckMutation.mutate();
+    }
   };
 
   return (
@@ -557,7 +580,7 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
               <p
                 className={cn(
                   "text-right text-xs",
-                  desktopUpdateInstallMutation.isError || desktopUpdateCheckMutation.isError || desktopUpdateStatusQuery.isError
+                  desktopUpdateDiagnostic || desktopUpdateInstallMutation.isError || desktopUpdateCheckMutation.isError || desktopUpdateStatusQuery.isError
                     ? "text-red-600"
                     : "text-slate-500",
                 )}
@@ -566,6 +589,26 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
               >
                 {desktopUpdateStatus}
               </p>
+            ) : null}
+            {isClient && desktopAvailable && desktopUpdateDiagnostic && updateDiagnosticText ? (
+              <div className="grid gap-2 rounded-lg border border-red-200 bg-red-50/50 p-3 text-xs" role="alert">
+                <p className="break-words font-medium text-red-700">{desktopUpdateDiagnostic.code && !desktopUpdateDiagnostic.message.includes(desktopUpdateDiagnostic.code) ? `${desktopUpdateDiagnostic.code}: ` : ""}{desktopUpdateDiagnostic.message}</p>
+                <details>
+                  <summary className="cursor-pointer">{t("systemInfo.desktopUpdateDiagnosticDetails")}</summary>
+                  <p className="my-2 text-slate-600">{t("systemInfo.desktopUpdateDiagnosticHint")}</p>
+                  <pre className="max-h-56 select-text overflow-auto whitespace-pre-wrap break-all text-slate-700">{updateDiagnosticText}</pre>
+                </details>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void handleCopyUpdateDiagnostic()}>
+                    <Copy className="h-3.5 w-3.5" />
+                    {updateDiagnosticCopyState === "copied" ? t("systemInfo.desktopUpdateDiagnosticCopied") : t("systemInfo.desktopCopyUpdateDiagnostic")}
+                  </Button>
+                  {updateDiagnosticCopyState === "error" ? <span role="status">{t("systemInfo.copyFailed")}</span> : null}
+                  <a className="underline underline-offset-2" href="https://github.com/tianma-if/edgeever/releases/latest" target="_blank" rel="noreferrer">
+                    {t("systemInfo.desktopUpdateManualDownload")}
+                  </a>
+                </div>
+              </div>
             ) : null}
             <div className="rounded-lg border border-slate-200/80 bg-card p-3 sm:p-3.5">
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3 sm:gap-x-5">

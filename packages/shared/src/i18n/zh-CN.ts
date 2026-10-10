@@ -1677,6 +1677,11 @@ export const zhCN = {
     desktopUpdateDownload: "下载更新",
     desktopUpdateRestart: "重启以更新",
     desktopUpdateInstalling: "正在重启并安装更新…",
+    desktopUpdateDiagnosticDetails: "诊断详情",
+    desktopUpdateDiagnosticCopied: "诊断信息已复制",
+    desktopUpdateManualDownload: "从 GitHub 下载最新版",
+    desktopCopyUpdateDiagnostic: "复制更新诊断信息",
+    desktopUpdateDiagnosticHint: "反馈问题时请复制以下信息。at 为 UTC 时间，localTime 为设备本地时间。",
     desktopUpdateFailed: "更新失败，请稍后重试。",
   },
   feedback: {

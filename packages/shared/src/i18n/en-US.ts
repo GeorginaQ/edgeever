@@ -1677,6 +1677,11 @@ export const enUS = {
     desktopUpdateDownload: "Download update",
     desktopUpdateRestart: "Restart to Update",
     desktopUpdateInstalling: "Restarting to install update…",
+    desktopUpdateDiagnosticDetails: "Diagnostic details",
+    desktopUpdateDiagnosticCopied: "Diagnostics copied",
+    desktopUpdateManualDownload: "Download latest from GitHub",
+    desktopCopyUpdateDiagnostic: "Copy update diagnostics",
+    desktopUpdateDiagnosticHint: "Copy these details when reporting the problem. “at” uses UTC; localTime uses your device’s time zone.",
     desktopUpdateFailed: "Update failed. Please try again later.",
   },
   feedback: {
