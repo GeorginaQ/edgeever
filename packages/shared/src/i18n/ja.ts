@@ -1672,6 +1672,7 @@ export const ja = {
     desktopDownloadLatest: "最新の AppImage をダウンロード",
     desktopUpdateChecking: "更新を確認しています…",
     desktopUpdateCurrent: "最新です。",
+    desktopUpdateVerifying: "更新パッケージを検証しています…",
     desktopUpdateDownloading: "更新をダウンロードしています…",
     desktopUpdateReady: "更新をダウンロード済み",
     desktopUpdateDownload: "更新をダウンロード",

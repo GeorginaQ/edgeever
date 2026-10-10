@@ -1672,6 +1672,7 @@ export const zhCN = {
     desktopDownloadLatest: "下载最新 AppImage",
     desktopUpdateChecking: "正在检查更新…",
     desktopUpdateCurrent: "当前已是最新版本。",
+    desktopUpdateVerifying: "正在校验安装包…",
     desktopUpdateDownloading: "正在下载更新…",
     desktopUpdateReady: "更新已下载完成",
     desktopUpdateDownload: "下载更新",

@@ -1672,6 +1672,7 @@ export const pl = {
     desktopDownloadLatest: "Pobierz najnowszy AppImage",
     desktopUpdateChecking: "Sprawdzanie aktualizacji…",
     desktopUpdateCurrent: "Masz najnowszą wersję.",
+    desktopUpdateVerifying: "Weryfikowanie aktualizacji…",
     desktopUpdateDownloading: "Pobieranie aktualizacji…",
     desktopUpdateReady: "Pobrano aktualizację",
     desktopUpdateDownload: "Pobierz aktualizację",

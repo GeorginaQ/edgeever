@@ -21,6 +21,7 @@ import {
 } from "@/lib/system-diagnostics";
 import { formatSystemInfoClipboard } from "@/lib/system-info-clipboard";
 import { cn } from "@/lib/utils";
+import { DesktopUpdateProgress } from "@/components/DesktopUpdateProgress";
 import { getReleaseTagForVersion, isClientAheadOfInstance } from "@/lib/version-check";
 
 export type SystemInfoItem = {
@@ -441,6 +442,8 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
   );
   const desktopUpdateState = desktopUpdateStatusQuery.data?.state ?? "idle";
   const desktopAutoUpdateSupported = clientRuntimeQuery.data?.autoUpdateSupported !== false;
+  const desktopUpdateDownloadLabel = t(desktopUpdateStatusQuery.data?.progress?.percent === 100
+    ? "systemInfo.desktopUpdateVerifying" : "systemInfo.desktopUpdateDownloading");
   const desktopUpdateBusy = desktopUpdateCheckMutation.isPending || desktopUpdateInstallMutation.isPending;
   const desktopUpdateDiagnostic = desktopUpdateStatusQuery.data?.error;
   const updateDiagnosticText = desktopUpdateDiagnostic
@@ -462,7 +465,7 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
       : desktopUpdateCheckMutation.isPending
         ? t("systemInfo.desktopUpdateChecking")
         : desktopUpdateState === "available"
-          ? t("systemInfo.desktopUpdateDownloading")
+          ? desktopUpdateDownloadLabel
           : desktopUpdateState === "downloaded"
             ? t("systemInfo.desktopUpdateReady")
             : desktopUpdateChecked
@@ -541,7 +544,7 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
                   {desktopUpdateState === "downloaded"
                     ? t("systemInfo.desktopUpdateRestart")
                     : desktopUpdateState === "available"
-                      ? t("systemInfo.desktopUpdateDownloading")
+                      ? desktopUpdateDownloadLabel
                       : desktopUpdateCheckMutation.isPending
                         ? t("systemInfo.desktopUpdateChecking")
                         : t("systemInfo.desktopCheckForUpdates")}
@@ -576,7 +579,7 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
                 </a>
               </div>
             ) : null}
-            {isClient && desktopAvailable && desktopAutoUpdateSupported && desktopUpdateStatus ? (
+            {isClient && desktopAvailable && desktopAutoUpdateSupported && desktopUpdateStatus && desktopUpdateState !== "available" ? (
               <p
                 className={cn(
                   "text-right text-xs",
@@ -589,6 +592,9 @@ export const SystemInfoPanel = ({ active = true }: { active?: boolean }) => {
               >
                 {desktopUpdateStatus}
               </p>
+            ) : null}
+            {isClient && desktopAvailable && desktopUpdateState === "available" && !desktopUpdateDiagnostic ? (
+              <DesktopUpdateProgress progress={desktopUpdateStatusQuery.data?.progress} />
             ) : null}
             {isClient && desktopAvailable && desktopUpdateDiagnostic && updateDiagnosticText ? (
               <div className="grid gap-2 rounded-lg border border-red-200 bg-red-50/50 p-3 text-xs" role="alert">

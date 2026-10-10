@@ -187,10 +187,18 @@ interface DesktopUpdateDiagnostic {
   source: string;
 }
 
+interface DesktopUpdateDownloadProgress {
+  percent: number | null;
+  transferred: number | null;
+  total: number | null;
+  bytesPerSecond: number | null;
+}
+
 interface DesktopUpdateStatus {
   state: "idle" | "available" | "downloaded";
   version: string | null;
   error?: DesktopUpdateDiagnostic | null;
+  progress?: DesktopUpdateDownloadProgress | null;
 }
 
 type DesktopLocalDataResetErrorCode =

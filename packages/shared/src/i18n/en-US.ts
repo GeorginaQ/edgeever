@@ -1672,6 +1672,7 @@ export const enUS = {
     desktopDownloadLatest: "Download latest AppImage",
     desktopUpdateChecking: "Checking for updates…",
     desktopUpdateCurrent: "You're up to date.",
+    desktopUpdateVerifying: "Verifying update…",
     desktopUpdateDownloading: "Downloading update…",
     desktopUpdateReady: "Update downloaded",
     desktopUpdateDownload: "Download update",

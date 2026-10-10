@@ -49,6 +49,8 @@ import {
 } from "./windows-update-trust.mjs";
 import electronUpdater from "electron-updater";
 import { createUpdateDiagnostic } from "./update-diagnostics.mjs";
+import { normalizeUpdateProgress } from "./update-progress.mjs";
+import { inspectWindowsTaskbarShortcuts } from "./windows-taskbar-diagnostics.mjs";
 import { createPluginPublicNetworkRuntime } from "./plugin-public-network.mjs";
 import { createAiDirectRuntime } from "./ai-direct.mjs";
 import { createAcpHostRuntime, registerAcpIpc } from "./acp-host.mjs";
@@ -127,6 +129,7 @@ let tray;
 let isQuitting = false;
 let updateState = "idle";
 let updateError = null;
+let updateProgress = null;
 let updateCheckInFlight = null;
 let updateDownloadInFlight = null;
 let updateCheckTimer = null;
@@ -1094,6 +1097,7 @@ const desktopUpdateStatus = () => ({
   state: updateState,
   version: downloadedUpdateVersion,
   error: updateError,
+  progress: updateProgress,
 });
 
 const recordUpdateError = (error, stage) => {
@@ -1124,6 +1128,7 @@ const trackDesktopUpdateDownload = (downloadPromise, reason) => {
   updateDownloadInFlight = Promise.resolve(downloadPromise)
     .catch(async (error) => {
       updateState = "idle";
+      updateProgress = null;
       downloadedUpdateVersion = null;
       windowsDownloadedUpdateVerified = false;
       refreshTrayMenu();
@@ -1209,6 +1214,7 @@ const checkForDesktopUpdate = (reason, { force = false, throwOnError = false } =
     })
     .catch(async (error) => {
       updateState = "idle";
+      updateProgress = null;
       downloadedUpdateVersion = null;
       trustedWindowsUpdate = null;
       windowsDownloadedUpdateVerified = false;
@@ -1240,6 +1246,7 @@ const configureAutoUpdater = () => {
   autoUpdater.autoRunAppAfterInstall = true;
   autoUpdater.on("update-available", (info) => {
     updateState = "available";
+    updateProgress = null;
     downloadedUpdateVersion = info?.version || null;
     if (process.platform === "win32") {
       trustedWindowsUpdate = null;
@@ -1251,6 +1258,7 @@ const configureAutoUpdater = () => {
   });
   autoUpdater.on("update-not-available", () => {
     updateState = "idle";
+    updateProgress = null;
     downloadedUpdateVersion = null;
     trustedWindowsUpdate = null;
     windowsDownloadedUpdateVerified = false;
@@ -1261,7 +1269,11 @@ const configureAutoUpdater = () => {
       void diagnosticWritten.finally(() => setTimeout(() => app.quit(), 100));
     }
   });
-  autoUpdater.on("download-progress", (progress) => { void writeDiagnostic("update.download-progress", { percent: progress.percent }); });
+  autoUpdater.on("download-progress", (progress) => {
+    updateProgress = normalizeUpdateProgress(progress);
+    publishDesktopUpdateStatus();
+    void writeDiagnostic("update.download-progress", { percent: progress.percent });
+  });
   autoUpdater.on("update-downloaded", (info) => {
     void (async () => {
       if (process.platform === "win32") {
@@ -1276,6 +1288,7 @@ const configureAutoUpdater = () => {
         autoUpdater.autoInstallOnAppQuit = true;
       }
       updateState = "downloaded";
+      updateProgress = null;
       updateError = null;
       downloadedUpdateVersion = info?.version || downloadedUpdateVersion;
       refreshTrayMenu();
@@ -1296,6 +1309,7 @@ const configureAutoUpdater = () => {
       }
       autoUpdater.autoInstallOnAppQuit = false;
       updateState = "idle";
+      updateProgress = null;
       downloadedUpdateVersion = null;
       windowsDownloadedUpdateVerified = false;
       refreshTrayMenu();
@@ -1308,6 +1322,7 @@ const configureAutoUpdater = () => {
     isQuitting = false;
     if (updateState !== "downloaded") {
       updateState = "idle";
+      updateProgress = null;
       downloadedUpdateVersion = null;
       windowsDownloadedUpdateVerified = false;
     }
@@ -1616,6 +1631,13 @@ const startApplication = async () => {
   app.setAsDefaultProtocolClient("edgeever");
   recoveredAfterAbnormalExit = existsSync(crashMarkerPath());
   void writeDiagnostic(recoveredAfterAbnormalExit ? "session.recovered-after-abnormal-exit" : "session.started");
+  void inspectWindowsTaskbarShortcuts({
+    platform: process.platform, packaged: app.isPackaged,
+    appData: app.getPath("appData"), executable: app.getPath("exe"),
+    readdir, readShortcutLink: (path) => shell.readShortcutLink(path), existsSync,
+  }).then((result) => {
+    if (result) return writeDiagnostic("windows.taskbar-shortcuts", result);
+  }).catch((error) => { void writeDiagnostic("windows.taskbar-shortcuts-unavailable", { message: error.message }); });
   await writeFile(crashMarkerPath(), new Date().toISOString());
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   registerDesktopAppProtocol();
