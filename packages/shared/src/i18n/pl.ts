@@ -2,6 +2,7 @@ import { memoTemplateSeedTranslations } from "../memo-template-seeds";
 
 // Shared by the PWA and native mobile clients.
 export const pl = {
+  noteProperties: {"heading": "Właściwości notatki", "source": "Pokaż źródło YAML", "name": "Nazwa właściwości", "type": "Typ właściwości", "add": "Dodaj właściwość", "remove": "Usuń {{name}}", "invalidName": "Użyj unikalnej nazwy, która nie jest właściwością systemową.", "invalidYaml": "Sprawdź właściwości:", "invalidNumber": "Wprowadź poprawną liczbę.", "listHint": "Jedna wartość w wierszu", "text": "Tekst", "list": "Lista", "number": "Liczba", "checkbox": "Pole wyboru", "date": "Data"},
   infographic: {
     name: "Infografika", autoLayout: "Układ automatyczny", describe: "Opisz i wygeneruj", chooseTemplate: "Wybierz szablon i uzupełnij treść",
     prompt: "Opisz informacje, strukturę i kluczowe punkty", generate: "Wygeneruj infografikę", generating: "Generowanie…",

@@ -1931,7 +1931,7 @@ export const WorkspaceApp = ({
         notebookId: targetNotebookId,
         title: payload.title,
         contentMarkdown: payload.contentMarkdown,
-        tags: [],
+        tags: payload.tags ?? [],
       });
     } catch {
       setAppNoticeDialog({

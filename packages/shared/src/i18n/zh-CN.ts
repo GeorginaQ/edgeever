@@ -2,6 +2,7 @@ import { memoTemplateSeedTranslations } from "../memo-template-seeds";
 
 // Shared by the PWA and native mobile clients.
 export const zhCN = {
+  noteProperties: {"heading": "笔记属性", "source": "显示 YAML 源码", "name": "属性名称", "type": "属性类型", "add": "添加属性", "remove": "删除 {{name}}", "invalidName": "请输入不重复且非系统保留的属性名称。", "invalidYaml": "请检查笔记属性：", "invalidNumber": "请输入有效数字。", "listHint": "每行一个值", "text": "文本", "list": "列表", "number": "数字", "checkbox": "复选框", "date": "日期"},
   infographic: {
     name: "信息图", autoLayout: "自动排版", describe: "描述内容并生成", chooseTemplate: "选择模板手动填内容",
     prompt: "描述你想呈现的信息、结构与重点", generate: "生成信息图", generating: "正在生成…",

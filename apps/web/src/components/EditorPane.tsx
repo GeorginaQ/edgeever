@@ -130,6 +130,11 @@ import { EDITOR_CONTENT_MAX_WIDTH, EDITOR_OUTLINE_WIDTH } from "@/lib/workspace-
 import {
   countMemoCharacters,
   createEdgeEverDocumentExtensions,
+  getFrontMatterSource,
+  getMappedNoteProperties,
+  parseNoteProperties,
+  splitMarkdownFrontMatter,
+  updateNoteProperty,
   docToMarkdown,
   MEMO_CONTENT_STYLE,
   noteProseCssVariables,
@@ -1406,6 +1411,39 @@ const RichEditorPane = ({
   });
   const useMarkdownSourceEditor = !useMobilePlainTextEditor && isMarkdownMode;
 
+  const applyPropertyFields = useCallback((source: string | null) => {
+    if (source === null || hydratingRef.current) return;
+    const fields = memoFieldsRef.current;
+    if (fields.memoId !== memoRef.current?.id) return;
+    const properties = parseNoteProperties(source);
+    if (!properties.values) return;
+    const mapped = getMappedNoteProperties(properties.values);
+    const next = { ...fields, ...(mapped.title !== undefined ? { title: mapped.title } : {}),
+      ...(mapped.tags !== undefined ? { tagsText: mapped.tags.join(", ") } : {}) };
+    if (next.title === fields.title && next.tagsText === fields.tagsText) return;
+    memoFieldsRef.current = next;
+    setMemoFields(next);
+  }, []);
+
+  const updatePropertyField = (name: string, value: unknown) => {
+    if (!isEditorReady(editor)) return;
+    const source = useMarkdownSourceEditor ? splitMarkdownFrontMatter(getMarkdownSource())?.source ?? null
+      : getFrontMatterSource(editor.getJSON() as TiptapDoc);
+    if (source === null) return;
+    const properties = parseNoteProperties(source);
+    if (!properties.values || !Object.hasOwn(properties.values, name)) return;
+    const next = updateNoteProperty(source, name, value);
+    if (useMarkdownSourceEditor) {
+      const split = splitMarkdownFrontMatter(getMarkdownSource())!;
+      const markdown = `---\n${next}\n---\n${split.body}`;
+      setMarkdownSource(markdown);
+      markdownSourceEditorRef.current?.replaceDocument(markdown);
+    } else {
+      const node = editor.state.doc.firstChild!;
+      editor.view.dispatch(editor.state.tr.insertText(next, 1, node.nodeSize - 1));
+    }
+  };
+
   const uploadMarkdownPasteFiles = useCallback(async (files: File[]) => {
     const targetMemoId = memoRef.current?.id;
     if (!targetMemoId || effectiveReadOnly) return "";
@@ -2622,7 +2660,11 @@ const RichEditorPane = ({
       return;
     }
 
+    let previousProperties = getFrontMatterSource(editor.getJSON() as TiptapDoc);
     const persistDraft = () => {
+      const source = getFrontMatterSource(editor.getJSON() as TiptapDoc);
+      if (source !== previousProperties) applyPropertyFields(source);
+      previousProperties = source;
       if (hydratingRef.current || memoRef.current?.isDeleted) {
         return;
       }
@@ -2634,7 +2676,7 @@ const RichEditorPane = ({
     return () => {
       editor.off("update", persistDraft);
     };
-  }, [editor, markDirty, memo, persistCurrentDraft]);
+  }, [applyPropertyFields, editor, markDirty, memo, persistCurrentDraft]);
 
   useEffect(() => {
     const advanceMemoSyncBase = (syncedMemo: MemoDetail | null | undefined) => {
@@ -2723,6 +2765,7 @@ const RichEditorPane = ({
 
   const handleMarkdownSourceChange = useCallback((value: string) => {
     if (revertingUnsafeMarkdownRef.current) return;
+    const previousProperties = splitMarkdownFrontMatter(getMarkdownSource())?.source ?? null;
     if (!setMarkdownSource(value)) {
       revertingUnsafeMarkdownRef.current = true;
       try {
@@ -2732,8 +2775,10 @@ const RichEditorPane = ({
       }
       return;
     }
+    const properties = splitMarkdownFrontMatter(value)?.source ?? null;
+    if (properties !== previousProperties) applyPropertyFields(properties);
     markDirty();
-  }, [getMarkdownSource, markDirty, setMarkdownSource]);
+  }, [applyPropertyFields, getMarkdownSource, markDirty, setMarkdownSource]);
 
   const {
     handleCopyToWeChat,
@@ -3868,9 +3913,11 @@ const RichEditorPane = ({
                 value={title}
                 readOnly={effectiveReadOnly}
                 onValueChange={(nextTitle) => {
+                  if (memoFieldsRef.current.memoId === memo.id) memoFieldsRef.current = { ...memoFieldsRef.current, title: nextTitle };
                   setMemoFields((fields) => fields.memoId === memo.id
                     ? { ...fields, title: nextTitle }
                     : fields);
+                  updatePropertyField("title", nextTitle);
                   persistCurrentDraft(nextTitle, tagsText, getMobilePlainTextValue());
                   markDirty();
                 }}
@@ -3892,9 +3939,11 @@ const RichEditorPane = ({
             onMobileNotebookPickerOpenChange={setMobileNotebookSheetOpen}
             onNotebookChange={handleNotebookChange}
             onTagsChange={(nextTagsText) => {
+              if (memoFieldsRef.current.memoId === memo.id) memoFieldsRef.current = { ...memoFieldsRef.current, tagsText: nextTagsText };
               setMemoFields((fields) => fields.memoId === memo.id
                 ? { ...fields, tagsText: nextTagsText }
                 : fields);
+              updatePropertyField("tags", parseTagsText(nextTagsText));
               persistCurrentDraft(title, nextTagsText, getMobilePlainTextValue());
               markDirty();
             }}
