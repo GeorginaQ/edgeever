@@ -401,6 +401,16 @@ export const EditorToolbar = ({
               <MemoEditorToolbarDivider className="hidden sm:block" />
             </>
           )}
+          {showFormattingTools && onPickMathFormula && (
+            <EditorToolbarButton
+              title={t("editorToolbar.math")}
+              active={isActive("inlineMath") || isActive("blockMath")}
+              disabled={disabled}
+              onClick={onPickMathFormula}
+            >
+              <Sigma className="h-4 w-4" />
+            </EditorToolbarButton>
+          )}
           <DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -575,16 +585,6 @@ export const EditorToolbar = ({
           >
             <ChartNoAxesCombined className="h-4 w-4" />
           </EditorToolbarButton>
-          {onPickMathFormula && (
-            <EditorToolbarButton
-              title={t("editorToolbar.math")}
-              active={isActive("inlineMath") || isActive("blockMath")}
-              disabled={disabled}
-              onClick={onPickMathFormula}
-            >
-              <Sigma className="h-4 w-4" />
-            </EditorToolbarButton>
-          )}
           <EditorToolbarButton
             title={t("editorToolbar.horizontalRule")}
             disabled={disabled}
